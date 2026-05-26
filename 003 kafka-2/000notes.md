@@ -1,3 +1,692 @@
+# Kafka Annotations: One Producer & Two Consumers Example
+
+
+
+In Spring Boot with Kafka, annotations are used to configure producers and consumers declaratively.
+
+---
+
+## Dependencies (pom.xml)
+
+```xml
+<dependency>
+    <groupId>org.springframework.kafka</groupId>
+    <artifactId>spring-kafka</artifactId>
+</dependency>
+```
+
+---
+
+## Configuration (application.yml)
+
+```yaml
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+    consumer:
+      group-id: default-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+```
+
+---
+
+## 1. Kafka Config Class
+
+```java
+@Configuration
+@EnableKafka                          // Enables Kafka listener annotations
+public class KafkaConfig {
+
+    // Producer Factory — builds the producer with serializer settings
+    @Bean
+    public ProducerFactory<String, String> producerFactory() {
+        Map<String, Object> config = new HashMap<>();
+        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        return new DefaultKafkaProducerFactory<>(config);
+    }
+
+    // KafkaTemplate — used to send messages from the producer
+    @Bean
+    public KafkaTemplate<String, String> kafkaTemplate() {
+        return new KafkaTemplate<>(producerFactory());
+    }
+
+    // Consumer Factory — builds consumers with deserializer settings
+    @Bean
+    public ConsumerFactory<String, String> consumerFactory() {
+        Map<String, Object> config = new HashMap<>();
+        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        config.put(ConsumerConfig.GROUP_ID_CONFIG, "default-group");
+        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        return new DefaultKafkaConsumerFactory<>(config);
+    }
+
+    // Listener Container Factory — required for @KafkaListener to work
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, String> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory());
+        return factory;
+    }
+}
+```
+
+---
+
+## 2. Producer
+
+```java
+@Service
+public class OrderProducer {
+
+    @Autowired
+    private KafkaTemplate<String, String> kafkaTemplate;   // Injected via @Bean
+
+    // Sends message to the "orders" topic
+    public void sendOrder(String order) {
+        kafkaTemplate.send("orders", order);
+        System.out.println("Produced: " + order);
+    }
+}
+```
+
+---
+
+## 3. Consumer 1 — Order Processor
+
+```java
+@Service
+public class OrderConsumer {
+
+    @KafkaListener(
+        topics = "orders",                        // Topic to listen to
+        groupId = "order-group",                  // Unique consumer group
+        containerFactory = "kafkaListenerContainerFactory"  // Links to the factory bean
+    )
+    public void consumeOrder(String message) {
+        System.out.println("OrderConsumer received: " + message);
+        // Process order logic here
+    }
+}
+```
+
+---
+
+## 4. Consumer 2 — Notification Service
+
+```java
+@Service
+public class NotificationConsumer {
+
+    @KafkaListener(
+        topics = "orders",                        // Same topic, different group
+        groupId = "notification-group",           // Different group = gets ALL messages independently
+        containerFactory = "kafkaListenerContainerFactory"
+    )
+    public void sendNotification(String message) {
+        System.out.println("NotificationConsumer received: " + message);
+        // Send email/SMS notification logic here
+    }
+}
+```
+
+---
+
+## 5. Trigger the Producer (Controller)
+
+```java
+@RestController
+@RequestMapping("/api")
+public class OrderController {
+
+    @Autowired
+    private OrderProducer orderProducer;
+
+    @PostMapping("/order")
+    public String placeOrder(@RequestBody String order) {
+        orderProducer.sendOrder(order);
+        return "Order sent!";
+    }
+}
+```
+
+---
+
+## Key Annotations Explained
+
+| Annotation | Where Used | Purpose |
+|---|---|---|
+| `@EnableKafka` | Config class | Activates `@KafkaListener` scanning |
+| `@Bean` | Config methods | Registers Kafka beans in Spring context |
+| `@KafkaListener` | Consumer methods | Marks method as a Kafka message listener |
+| `@Autowired` | Producer/Controller | Injects `KafkaTemplate` or service |
+| `@Service` | Producer/Consumer | Registers class as a Spring service bean |
+
+---
+
+## How It Works (Flow)
+
+```
+POST /api/order
+      │
+      ▼
+ OrderProducer
+ kafkaTemplate.send("orders", message)
+      │
+      ▼
+ Kafka Topic: "orders"
+      │
+      ├──▶ OrderConsumer (group: order-group)        → processes order
+      │
+      └──▶ NotificationConsumer (group: notification-group) → sends notification
+```
+
+> **Key point:** Since the two consumers have **different `groupId`s**, both receive every message independently. If they shared the same `groupId`, messages would be load-balanced between them.
+
+
+# Kafka with Microservices on Different Ports
+
+Each microservice is a **separate Spring Boot app** with its own `application.yml` and runs independently.
+
+---
+
+## Project Structure
+
+```
+kafka-demo/
+├── order-service/          (Producer)       → Port 8081
+├── inventory-service/      (Consumer 1)     → Port 8082
+└── notification-service/   (Consumer 2)     → Port 8083
+```
+
+---
+
+## 1. Order Service (Producer) — Port 8081
+
+### application.yml
+```yaml
+server:
+  port: 8081
+
+spring:
+  application:
+    name: order-service
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+```
+
+### KafkaProducerConfig.java
+```java
+@Configuration
+public class KafkaProducerConfig {
+
+    @Value("${spring.kafka.bootstrap-servers}")
+    private String bootstrapServers;
+
+    @Bean
+    public ProducerFactory<String, String> producerFactory() {
+        Map<String, Object> config = new HashMap<>();
+        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        return new DefaultKafkaProducerFactory<>(config);
+    }
+
+    @Bean
+    public KafkaTemplate<String, String> kafkaTemplate() {
+        return new KafkaTemplate<>(producerFactory());
+    }
+}
+```
+
+### OrderProducer.java
+```java
+@Service
+public class OrderProducer {
+
+    @Autowired
+    private KafkaTemplate<String, String> kafkaTemplate;
+
+    public void sendOrder(String order) {
+        kafkaTemplate.send("orders", order);
+        System.out.println("[OrderService] Produced: " + order);
+    }
+}
+```
+
+### OrderController.java
+```java
+@RestController
+@RequestMapping("/api/orders")
+public class OrderController {
+
+    @Autowired
+    private OrderProducer orderProducer;
+
+    @PostMapping
+    public String placeOrder(@RequestBody String order) {
+        orderProducer.sendOrder(order);
+        return "Order placed!";
+    }
+}
+```
+
+---
+
+## 2. Inventory Service (Consumer 1) — Port 8082
+
+### application.yml
+```yaml
+server:
+  port: 8082
+
+spring:
+  application:
+    name: inventory-service
+  kafka:
+    bootstrap-servers: localhost:9092   # Same Kafka broker
+    consumer:
+      group-id: inventory-group         # Unique group ID
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+```
+
+### KafkaConsumerConfig.java
+```java
+@Configuration
+@EnableKafka
+public class KafkaConsumerConfig {
+
+    @Value("${spring.kafka.bootstrap-servers}")
+    private String bootstrapServers;
+
+    @Value("${spring.kafka.consumer.group-id}")
+    private String groupId;
+
+    @Bean
+    public ConsumerFactory<String, String> consumerFactory() {
+        Map<String, Object> config = new HashMap<>();
+        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        config.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        return new DefaultKafkaConsumerFactory<>(config);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, String> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory());
+        return factory;
+    }
+}
+```
+
+### InventoryConsumer.java
+```java
+@Service
+public class InventoryConsumer {
+
+    @KafkaListener(
+        topics = "orders",
+        groupId = "inventory-group"     // Matches application.yml group-id
+    )
+    public void updateInventory(String message) {
+        System.out.println("[InventoryService] Updating stock for: " + message);
+        // Deduct stock logic here
+    }
+}
+```
+
+---
+
+## 3. Notification Service (Consumer 2) — Port 8083
+
+### application.yml
+```yaml
+server:
+  port: 8083
+
+spring:
+  application:
+    name: notification-service
+  kafka:
+    bootstrap-servers: localhost:9092   # Same Kafka broker
+    consumer:
+      group-id: notification-group      # Different group ID
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+```
+
+### NotificationConsumer.java
+```java
+@Service
+public class NotificationConsumer {
+
+    @KafkaListener(
+        topics = "orders",
+        groupId = "notification-group"  // Matches application.yml group-id
+    )
+    public void sendNotification(String message) {
+        System.out.println("[NotificationService] Sending notification for: " + message);
+        // Email/SMS logic here
+    }
+}
+```
+
+> Notification service uses the **same** `KafkaConsumerConfig` structure as Inventory — just copy and use its own `application.yml` values.
+
+---
+
+## Complete Flow
+
+```
+Client
+  │
+  │  POST http://localhost:8081/api/orders
+  ▼
+Order Service (8081)
+  │  kafkaTemplate.send("orders", message)
+  ▼
+Kafka Broker (localhost:9092)
+  Topic: "orders"
+  │
+  ├──▶ Inventory Service (8082)
+  │    group: inventory-group
+  │    → Updates stock
+  │
+  └──▶ Notification Service (8083)
+       group: notification-group
+       → Sends email/SMS
+```
+
+---
+
+## Key Differences vs Single App
+
+| Aspect | Single App | Microservices |
+|---|---|---|
+| Port | One port | Each service has its own port |
+| `application.yml` | One file | One per service |
+| Kafka broker | Shared | Same broker, all services point to it |
+| `group-id` | Different per consumer | Different per service |
+| Deployment | One JAR | Separate JARs / containers |
+| Communication | Direct method call | Only via Kafka topic |
+
+---
+
+## Running All Services
+
+```bash
+# Terminal 1 — Start Kafka
+zookeeper-server-start.sh config/zookeeper.properties
+kafka-server-start.sh config/server.properties
+
+# Terminal 2
+cd order-service && mvn spring-boot:run        # Starts on 8081
+
+# Terminal 3
+cd inventory-service && mvn spring-boot:run    # Starts on 8082
+
+# Terminal 4
+cd notification-service && mvn spring-boot:run # Starts on 8083
+
+# Test
+curl -X POST http://localhost:8081/api/orders -H "Content-Type: application/json" -d '"Order#101"'
+```
+
+> All three services connect to the **same Kafka broker** — the port difference is only for their REST APIs, not for Kafka communication.
+
+
+# Kafka Annotations Explained
+
+## 1. `@EnableKafka`
+
+```java
+@Configuration
+@EnableKafka
+public class KafkaConsumerConfig {
+    // Activates the Kafka listener infrastructure in Spring
+    // Without this, @KafkaListener will be completely ignored
+    // Only needed on the CONSUMER side, not producer
+}
+```
+
+**Key Points:**
+- Must be on a `@Configuration` class
+- Only required once in the whole application
+- Without it, no `@KafkaListener` method will ever trigger
+
+---
+
+## 2. `@KafkaListener`
+
+```java
+@Service
+public class InventoryConsumer {
+
+    @KafkaListener(
+        topics = "orders",                  // topic name to listen
+        groupId = "inventory-group",        // consumer group ID
+        containerFactory = "kafkaListenerContainerFactory"  // which factory bean to use
+    )
+    public void updateInventory(String message) {
+        System.out.println("Received: " + message);
+    }
+}
+```
+
+### All Available Properties
+
+```java
+@KafkaListener(
+    topics = "orders",                  // single topic
+    topics = {"orders", "payments"},    // multiple topics
+
+    groupId = "inventory-group",        // consumer group
+
+    topicPattern = "order.*",           // listen to topics matching regex
+
+    containerFactory = "kafkaListenerContainerFactory",  // factory bean name
+
+    concurrency = "3",                  // number of concurrent threads/consumers
+
+    autoStartup = "true",               // start listening on app startup
+
+    clientIdPrefix = "inv",             // prefix for consumer client ID
+
+    id = "inventoryListener"            // unique ID for this listener container
+)
+```
+
+---
+
+## 3. `@KafkaListeners` — Multiple Topics
+
+```java
+@Service
+public class MultiTopicConsumer {
+
+    @KafkaListeners({
+        @KafkaListener(topics = "orders",   groupId = "multi-group"),
+        @KafkaListener(topics = "payments", groupId = "multi-group")
+    })
+    public void consume(String message) {
+        // This method listens to BOTH topics
+        System.out.println("Received: " + message);
+    }
+}
+```
+
+---
+
+## 4. `@TopicPartition` — Listen to Specific Partition
+
+```java
+@Service
+public class PartitionConsumer {
+
+    @KafkaListener(
+        topicPartitions = @TopicPartition(
+            topic = "orders",
+            partitions = {"0", "1"}     // Only listen to partition 0 and 1
+        ),
+        groupId = "partition-group"
+    )
+    public void consumePartition(String message) {
+        System.out.println("From partition 0 or 1: " + message);
+    }
+}
+```
+
+---
+
+## 5. `@Payload` — Extract Message Body
+
+```java
+@Service
+public class OrderConsumer {
+
+    @KafkaListener(topics = "orders", groupId = "order-group")
+    public void consume(
+        @Payload String message         // Explicitly binds the Kafka message value
+    ) {
+        System.out.println("Message body: " + message);
+    }
+}
+```
+
+---
+
+## 6. `@Header` — Extract Kafka Headers
+
+```java
+@Service
+public class OrderConsumer {
+
+    @KafkaListener(topics = "orders", groupId = "order-group")
+    public void consume(
+        @Payload String message,
+
+        @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,        // which topic
+        @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,   // which partition
+        @Header(KafkaHeaders.OFFSET) long offset,                 // message offset
+        @Header(KafkaHeaders.RECEIVED_TIMESTAMP) long timestamp   // when received
+    ) {
+        System.out.println("Message : " + message);
+        System.out.println("Topic   : " + topic);
+        System.out.println("Partition: " + partition);
+        System.out.println("Offset  : " + offset);
+    }
+}
+```
+
+---
+
+## 7. `@SendTo` — Forward Result to Another Topic
+
+```java
+@Service
+public class OrderConsumer {
+
+    @KafkaListener(topics = "orders", groupId = "order-group")
+    @SendTo("processed-orders")     // return value is sent to this topic
+    public String processAndForward(String message) {
+        System.out.println("Processing: " + message);
+        return "PROCESSED: " + message;   // this gets published to "processed-orders"
+    }
+}
+```
+
+---
+
+## 8. `@KafkaHandler` — Multiple Message Types in One Class
+
+```java
+@Service
+@KafkaListener(topics = "orders", groupId = "order-group")  // on class level
+public class OrderConsumer {
+
+    @KafkaHandler                       // handles String messages
+    public void handleString(String message) {
+        System.out.println("String message: " + message);
+    }
+
+    @KafkaHandler                       // handles Order object messages
+    public void handleOrder(Order order) {
+        System.out.println("Order object: " + order.getId());
+    }
+
+    @KafkaHandler(isDefault = true)     // fallback for unknown types
+    public void handleDefault(Object message) {
+        System.out.println("Unknown type: " + message);
+    }
+}
+```
+
+---
+
+## All Kafka Annotations — Quick Reference
+
+| Annotation | Side | Purpose |
+|---|---|---|
+| `@EnableKafka` | Consumer | Activates Kafka listener scanning |
+| `@KafkaListener` | Consumer | Marks method as message listener |
+| `@KafkaListeners` | Consumer | Multiple `@KafkaListener` on one method |
+| `@TopicPartition` | Consumer | Listen to specific partition of a topic |
+| `@Payload` | Consumer | Extracts message body |
+| `@Header` | Consumer | Extracts Kafka metadata headers |
+| `@SendTo` | Consumer | Forwards return value to another topic |
+| `@KafkaHandler` | Consumer | Handles specific message type in a class |
+
+---
+
+## Real World Example — All Together
+
+```java
+@Service
+@KafkaListener(topics = "orders", groupId = "order-group")
+public class OrderConsumer {
+
+    @KafkaHandler
+    @SendTo("audit-log")
+    public String handleOrder(
+        @Payload String message,
+        @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
+        @Header(KafkaHeaders.OFFSET) long offset
+    ) {
+        System.out.println("Topic: " + topic + " | Offset: " + offset);
+        System.out.println("Message: " + message);
+
+        return "AUDITED: " + message;   // forwarded to "audit-log" topic via @SendTo
+    }
+
+    @KafkaHandler(isDefault = true)
+    public void handleUnknown(Object message) {
+        System.out.println("Unknown message type: " + message);
+    }
+}
+```
+
+> **Note:** `@EnableKafka` is the only annotation needed on the **producer side** — all other Kafka annotations are consumer-side only. The producer simply uses `KafkaTemplate.send()` programmatically.
+
 ![alt text](image.png)
 
 ![alt text](image-1.png)
@@ -160,9 +849,11 @@ If you shared one bookmark — whoever moves it first ruins the other person's p
 This is also why Kafka consumers are **stateless** — they don't need to remember where they were. Kafka remembers for them, per group, per partition.
 
 
+![alt text](image-21.png)
 
+In above pic ,it is kafka server/Broker!!Consumer group stores offset related information!!
 
-
+![alt text](image-22.png)
 
 
 
@@ -317,7 +1008,9 @@ Always commit **after** processing. A duplicate you can handle. A lost event you
 
 ![alt text](image-8.png)
 
-Great topic! A Kafka cluster is simply **multiple brokers working together as one system.** Let me build it up step by step.### What a Kafka cluster is
+Great topic! A Kafka cluster is simply **multiple brokers working together as one system.** Let me build it up step by step.
+
+### What a Kafka cluster is
 
 ```
 Single broker  = one server, one point of failure
