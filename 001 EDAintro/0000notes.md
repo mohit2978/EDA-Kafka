@@ -406,6 +406,7 @@ The most common Java stack for EDA is **Spring Boot + Apache Kafka** for distrib
 
 ![alt text](image.png)
 
+![alt text](image-15.png)
 
 ![alt text](image-1.png)
 
