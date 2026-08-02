@@ -1,4 +1,4 @@
-# Idempotency
+# Idempotency [00:00]
 
 Recall the setup that causes trouble:
 
@@ -12,7 +12,7 @@ This combination creates two problems.
 
 ---
 
-## Problem 1 — Duplicate Messages
+## Problem 1 — Duplicate Messages [00:24]
 
 ![alt text](image-p1-1.png)
 
@@ -25,7 +25,7 @@ Broker persists it AGAIN, now at offset2
 Result: same event persisted twice → Event1: offset1 AND Event1: offset2
 ```
 
-## Problem 2 — Message Reordering
+## Problem 2 — Message Reordering [01:38]
 
 ![alt text](image-p1-2.png)
 
@@ -41,7 +41,7 @@ Broker log ends up as: Event2: offset1, Event1: offset2
 
 ---
 
-## Solution — Idempotency = true
+## Solution — Idempotency = true [04:03]
 
 ```properties
 spring.kafka.producer.properties.enable.idempotence=true
@@ -52,9 +52,9 @@ Kafka version < 3.0  → default is FALSE
 Kafka version >= 3.0 → default is TRUE
 ```
 
-### How it works
+### How it works [04:36]
 
-**Step 1 — Producer application startup:** producer asks the cluster for a unique Producer ID (PID).
+**Step 1 — Producer application startup [04:52]:** producer asks the cluster for a unique Producer ID (PID).
 
 ![alt text](image-p2-3.png)
 
@@ -67,7 +67,7 @@ Kafka version >= 3.0 → default is TRUE
 5. Broker → Producer: PID = 1001
 ```
 
-**Step 2 — Producer sends requests:** every batch built at the Record Accumulator now also carries the PID plus a base/last sequence number, tracked per Topic-Partition.
+**Step 2 — Producer sends requests [06:00]:** every batch built at the Record Accumulator now also carries the PID plus a base/last sequence number, tracked per Topic-Partition.
 
 ![alt text](image-p3-4.png)
 
@@ -88,7 +88,7 @@ Topic+Partition, the sequence numbering continues from where it left off
 (doesn't restart at 0).
 ```
 
-**Step 3 — First request received by Broker**
+**Step 3 — First request received by Broker [09:30]**
 
 ![alt text](image-p3-5.png)
 
@@ -110,7 +110,7 @@ Check in-memory map for: PID:1001, Topic-A, Partition:P0
     No  → REJECT the request
 ```
 
-**Step 4 — Second request received by Broker**
+**Step 4 — Second request received by Broker [12:30]**
 
 ![alt text](image-p4-7.png)
 
@@ -143,9 +143,18 @@ fixed:
     retry simply gets REJECTED until it arrives in the right order.
 ```
 
+### Live idempotency demo — missing from notes [14:38]
+
+The video then verifies the same mechanism on a running Kafka cluster:
+
+1. The controller defaults are updated to create **4 partitions** with **2 replicas**, and the controllers and brokers are started.
+2. The producer is run with `enable.idempotence=true`, and records are sent to the topic.
+3. The topic/partition details and broker logs are inspected. The batch metadata contains the Producer ID together with its base and last sequence numbers.
+4. The first inspected batch shows `BaseSequence: 0` and `LastSequence: 9`. Sending again continues the sequence instead of restarting it, demonstrating that Kafka tracks and increments the sequence for subsequent batches from that producer.
+
 ---
 
-## The loophole — Controller doesn't remember PID-to-Producer mapping
+## The loophole — Controller doesn't remember PID-to-Producer mapping [22:23]
 
 ```
 Look again at Step 1: the Controller does NOT store PID information in
@@ -183,9 +192,9 @@ aren't stable across producer restarts.
 
 ---
 
-## Recommended settings when using Idempotency
+## Recommended settings when using Idempotency [29:07]
 
-### 1. `spring.kafka.producer.acks=all`
+### 1. `spring.kafka.producer.acks=all` [29:15]
 
 ```
 Why? Say acks=1: leader persists the event at seq no 1 but crashes BEFORE
@@ -201,7 +210,7 @@ replicated to all ISR members before being acknowledged, so a leader
 crash can never cause this gap.
 ```
 
-### 2. `spring.kafka.producer.retries=MAX_INT`
+### 2. `spring.kafka.producer.retries=MAX_INT` [30:51]
 
 ```
 With idempotency enabled, retries are SAFE (broker de-dupes based on
@@ -209,7 +218,7 @@ PID + sequence number) — so the earlier restriction on retry count is
 lifted. Retry as many times as needed.
 ```
 
-### 3. `spring.kafka.producer.properties.max.in.flight.requests.per.connection <= 5`
+### 3. `spring.kafka.producer.properties.max.in.flight.requests.per.connection <= 5` [31:18]
 
 ```
 Kafka can only guarantee idempotency up to 5 in-flight sequence numbers
@@ -219,3 +228,7 @@ In other words: the broker maintains a max buffer of only 5 sequence
 numbers for each (topic, partition, PID) combination — so this value
 must be kept <= 5 for idempotency guarantees to hold.
 ```
+
+## Closing notes — missing from notes [33:01]
+
+Idempotency prevents duplicates and reordering while the producer keeps the same PID. The recommended combination is `acks=all`, maximum retries, and no more than 5 in-flight requests per connection. A producer restart can receive a new PID, so the later Transactions section addresses that remaining restart loophole.

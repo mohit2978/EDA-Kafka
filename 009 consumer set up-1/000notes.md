@@ -1,6 +1,6 @@
-# Consumer Setup — Part 1
+# Consumer Setup — Part 1 [00:00]
 
-## Complete Consumer Read Flow (recap, step by step)
+## Complete Consumer Read Flow (recap, step by step) [00:00]
 
 ```
 Step1: Consumer starts, wants to join Group
@@ -75,7 +75,7 @@ Step13: Continuous polling — move back to Step 8
 
 ---
 
-## Step 1 — Dependency
+## Step 1 — Dependency [08:25]
 
 ```xml
 <!-- pom.xml -->
@@ -85,7 +85,7 @@ Step13: Continuous polling — move back to Step 8
 </dependency>
 ```
 
-## Step 2 — application.properties
+## Step 2 — application.properties [09:40]
 
 ```properties
 server.port=8082
@@ -127,7 +127,7 @@ public class Order {
 
 ---
 
-## What Spring Kafka does for us under the hood (conceptually, without Spring Boot)
+## What Spring Kafka does for us under the hood (conceptually, without Spring Boot) [24:47]
 
 ```java
 Properties props = new Properties();
@@ -167,7 +167,7 @@ try {
 }
 ```
 
-### What `poll()` actually does internally
+### What `poll()` actually does internally [28:00]
 
 ```
 If it's the FIRST call:
@@ -198,7 +198,7 @@ Auto-commit behavior:
 
 ---
 
-## The Spring Boot way — same properties, but framework does the wiring
+## The Spring Boot way — same properties, but framework does the wiring [34:00]
 
 ```properties
 # application.properties
@@ -230,7 +230,7 @@ Building blocks (who provides what):
     → runs the poll loop internally
 ```
 
-## Step 3 — Which topic to listen to + business logic
+## Step 3 — Which topic to listen to + business logic [17:20]
 
 ```java
 @Component
@@ -250,9 +250,19 @@ interested in. For each record (event) on that topic, this method
 gets executed automatically.
 ```
 
+## Consumer setup demo — missing from notes [18:09]
+
+The video verifies the configuration against the running Kafka cluster:
+
+1. Start the controllers and brokers, then start the consumer service containing the `@KafkaListener`.
+2. Describe the `order-events` topic to verify its partitions and leaders.
+3. Publish an order event (the demo uses order ID `32700`) and inspect the relevant partition log.
+4. The listener receives the newly published event and runs its business logic.
+5. For a brand-new consumer group with no committed offset, `auto.offset.reset=latest` starts from the latest position. Existing older records are not replayed; new records published after the consumer starts are consumed.
+
 ---
 
-## Going 1 level deeper — what happens behind the scenes on startup
+## Going 1 level deeper — what happens behind the scenes on startup [38:00]
 
 ```
 1. Spring Boot Application starts
@@ -273,3 +283,7 @@ gets executed automatically.
    ConsumerFactory
 9. Poll loop starts
 ```
+
+## Closing notes — missing from notes [46:31]
+
+The consumer setup is now complete: configuration creates the `ConsumerFactory`, Spring builds a listener container for `@KafkaListener`, the container obtains the real `KafkaConsumer`, and its poll loop performs group joining, offset lookup, fetching, processing, and offset commits. The following consumer lessons build further on these properties and behaviors.

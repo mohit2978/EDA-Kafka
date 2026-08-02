@@ -1,4 +1,4 @@
-# Producer Internals and Setup
+# Producer Internals and Setup [00:00]
 
 Cluster we already set up (2 Brokers + 2 Controllers), producer/consumer sit outside it:
 
@@ -14,7 +14,7 @@ Producer.send() ---Send Event---> Kafka Cluster (Kafka Broker)
 
 ---
 
-## Stage 1 — Serializer
+## Stage 1 — Serializer [02:24]
 
 ![alt text](image-p2-3.png)
 
@@ -56,7 +56,7 @@ Custom Serializer  → when we want full control:
 
 ---
 
-## Stage 2 — Partitioner
+## Stage 2 — Partitioner [05:23]
 
 ![alt text](image-p4-5.png)
 
@@ -77,7 +77,7 @@ public interface Partitioner {
 
 ![alt text](image-p4-6.png)
 
-### Case 1 — Partition explicitly provided
+### Case 1 — Partition explicitly provided [07:20]
 
 ```java
 // KafkaTemplate.java
@@ -90,7 +90,7 @@ public CompletableFuture<SendResult<K,V>> send(String topic, Integer partition, 
 
 Partitioner does nothing here — we already told it the partition.
 
-### Case 2 — Key is provided
+### Case 2 — Key is provided [07:50]
 
 ```java
 @Override
@@ -105,7 +105,7 @@ Kafka ensures the same key ALWAYS goes to the same partition:
 partition = hash(keyBytes) % numberOfPartitions
 ```
 
-### Case 3 — No key is provided
+### Case 3 — No key is provided [08:40]
 
 ```java
 @Override
@@ -122,7 +122,7 @@ From Kafka 2.4 on:  Sticky Partitioning Strategy
 
 ---
 
-## Stage 3 — Record Accumulator
+## Stage 3 — Record Accumulator [10:11]
 
 ![alt text](image-p6-7.png)
 
@@ -138,7 +138,7 @@ This is exactly why Kafka Producer achieves very high throughput
 
 Producer always maintains a topic-partition-wise batch, and sends **batches** to the broker — not individual events.
 
-### Round Robin vs Sticky Partitioning (the "no key" case, revisited)
+### Round Robin vs Sticky Partitioning (the "no key" case, revisited) [13:30]
 
 **Round Robin (pre Kafka 2.4):**
 
@@ -182,7 +182,7 @@ closed or a new batch needs to be created.
 → fewer batches → fewer network calls.
 ```
 
-### Controlling batch size
+### Controlling batch size [21:50]
 
 ```
 Two knobs control the batch:
@@ -203,7 +203,7 @@ Two knobs control the batch:
 
 ---
 
-## Stage 4 — Compression
+## Stage 4 — Compression [24:15]
 
 ![alt text](image-p11-12.png)
 
@@ -220,7 +220,7 @@ Kafka also stores these compressed batches on disk → saves disk space too.
 
 ---
 
-## Stage 5 — Sender Thread
+## Stage 5 — Sender Thread [27:25]
 
 ![alt text](image-p12-13.png)
 
@@ -230,7 +230,7 @@ Application thread's job ends at writing the record to the Record
 Accumulator — after that, the background Sender Thread takes over.
 ```
 
-### Sender Thread responsibilities
+### Sender Thread responsibilities [29:10]
 
 ```
 1. Check Record Accumulator for batches that are ready
@@ -260,7 +260,7 @@ max.in.flight.requests.per.connection = 5 (default)
   cluster at once.
 ```
 
-### ⚠️ Message reordering risk
+### ⚠️ Message reordering risk [41:11]
 
 ```
 IF max.in.flight.requests.per.connection > 1  AND  retries > 0
@@ -279,9 +279,9 @@ This risk is resolved by setting **idempotency = true** (covered separately, in 
 
 ---
 
-## Producer Setup (Spring Boot)
+## Video 2 — Kafka Producer Setup (Spring Boot) [00:00]
 
-### Step 1 — Dependency
+### Step 1 — Dependency [00:17]
 
 ```xml
 <!-- pom.xml -->
@@ -303,7 +303,7 @@ spring-kafka = Spring wrapper layer + Kafka client dependency
   that KafkaTemplate/KafkaAdmin use underneath.
 ```
 
-### Step 2 — Add Bootstrap Brokers
+### Step 2 — Add Bootstrap Brokers [01:30]
 
 ```properties
 server.port=8081
@@ -330,7 +330,7 @@ Why bootstrap servers are needed:
   (default) or whenever there's an issue connecting to a partition's leader.
 ```
 
-### Step 3 — Topic Creation
+### Step 3 — Topic Creation [05:12]
 
 ```
 Same as in Cluster Setup: if partitions/RF aren't specified at topic
@@ -338,6 +338,8 @@ creation, controller's default values are used. Segment size, cleanup
 policy etc. can similarly default from broker properties — OR be
 explicitly overridden per topic via TopicBuilder.
 ```
+
+#### Demo of Topic Creation [10:30]
 
 ```java
 @Configuration
@@ -363,9 +365,9 @@ On application startup, Spring checks if this topic already exists —
 if not, it sends the create-topic request.
 ```
 
-### Step 4 — Send Event
+### Step 4 — Send Event [14:14]
 
-#### Use case 1 — Send WITH key (JsonSerializer)
+#### Use case 1 — Send WITH key (JsonSerializer) [14:14]
 
 ```
 SERIALIZER:    Key = String, Value = JSON
@@ -478,7 +480,7 @@ spring.kafka.producer.retries=3
 spring.kafka.producer.properties.max.in.flight.requests.per.connection=5
 ```
 
-#### Use case 2 — Send WITHOUT key (Custom Serializer, Sticky Partitioning)
+#### Use case 2 — Send WITHOUT key (Custom Serializer, Sticky Partitioning) [28:02]
 
 ```
 SERIALIZER:   Key = String, Value = Custom Serializer
@@ -564,7 +566,7 @@ spring.kafka.producer.value-serializer=com.eda.producer.serializer.OrderSummaryS
 # everything else (bootstrap-servers, acks, batching, compression, retries...) same as use case 1
 ```
 
-### Multiple producers needing different serializers?
+### Multiple producers needing different serializers? [36:52]
 
 ```
 Problem: some producers need JsonSerializer, some need a custom
@@ -631,7 +633,7 @@ instead — both coexist in the same app.
 
 ---
 
-## Closing thread — message reordering risk (recap)
+## Closing thread — message reordering risk (recap) [45:20]
 
 ```
 When:

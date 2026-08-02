@@ -1,4 +1,4 @@
-# Kafka Cluster Setup
+# Kafka Cluster Setup [00:00]
 
 Target cluster for this exercise — 2 Controllers + 2 Brokers:
 
@@ -15,7 +15,7 @@ Kafka Cluster
 
 ---
 
-## Step 1 — Download Kafka Binary
+## Step 1 — Download Kafka Binary [00:49]
 
 ```
 Download latest Kafka Binary from the official Downloads page.
@@ -27,7 +27,7 @@ to actually understand the moving parts; once understood, Docker is trivial).
 Download gives: kafka_2.13-4.2.0.tgz (+ .asc, .sha512 for verification)
 ```
 
-## Step 2 — Understand each sub-folder
+## Step 2 — Understand each sub-folder [02:04]
 
 ![alt text](image-p2-2.png)
 
@@ -64,7 +64,7 @@ config/
 
 ---
 
-## Step 3 — Write the configuration for Controllers
+## Step 3 — Write the configuration for Controllers [05:20]
 
 `controller1.properties`
 
@@ -101,7 +101,7 @@ num.partitions=3
 default.replication.factor=2
 ```
 
-### Config field meanings
+### Config field meanings [06:29]
 
 ```
 process.roles → tells Kafka what role this node performs:
@@ -148,7 +148,7 @@ offsets.topic.replication.factor → default RF for the internal
 
 ---
 
-## Step 4 — Write the configuration for Brokers
+## Step 4 — Write the configuration for Brokers [15:45]
 
 `broker1.properties`
 
@@ -208,7 +208,7 @@ log.segment.bytes=1073741824
 offsets.topic.replication.factor=2
 ```
 
-### Config field meanings
+### Config field meanings [16:15]
 
 ```
 controller.quorum.voters → each broker also maintains the static list of
@@ -234,9 +234,16 @@ controller.listener.names → 2 uses:
      This is also why all controllers share the same listener name.
 ```
 
+### Log retention deletes whole segments — missing from notes [24:50]
+
+Kafka stores topic data in log-segment files. Retention cleanup does not delete
+events one by one. When a segment becomes eligible for retention cleanup, Kafka
+deletes the complete segment. `log.segment.bytes=1073741824` limits each segment
+to 1 GB; after a segment rolls, Kafka writes subsequent events to a new segment.
+
 ---
 
-## Step 5 — Map all nodes (2 brokers + 2 controllers) to 1 Kafka Cluster
+## Step 5 — Map all nodes (2 brokers + 2 controllers) to 1 Kafka Cluster [26:50]
 
 Generate a cluster ID using the script in `/bin`:
 
@@ -244,6 +251,14 @@ Generate a cluster ID using the script in `/bin`:
 bin/kafka-storage.sh random-uuid
 # Sample output: zJVVVZAkS9aIBfjY0BlYJA
 ```
+
+### Clean previous local node data before re-formatting — missing from notes [28:00]
+
+In the video demo, the previously running local Kafka nodes are stopped and the
+old broker/controller log directories are removed before the nodes are formatted
+again. This prevents persisted metadata from an older local run from conflicting
+with the new cluster ID. This cleanup is only for a disposable local rerun; it is
+not required for a fresh setup, and real cluster data must not be deleted.
 
 Format/map each node with this cluster ID:
 
@@ -286,7 +301,7 @@ Every node's `meta.properties` shares the same `cluster.id` — that's what bind
 
 ---
 
-## Step 6 — Start all the node servers
+## Step 6 — Start all the node servers [31:15]
 
 ```
 Order matters: start Controllers FIRST, then Brokers.
@@ -336,7 +351,7 @@ CurrentObservers:   [{id:4, ...}, {id:3, ...}]   ← these are the brokers
 
 ---
 
-## Step 7 — Create a test topic
+## Step 7 — Create a test topic [36:40]
 
 ```bash
 bin/kafka-topics.sh --bootstrap-server localhost:9092 \
@@ -372,7 +387,7 @@ Configs: min.insync.replicas=1, segment.bytes=1073741824
 
 ---
 
-## Step 8 — Producer test
+## Step 8 — Producer test [39:45]
 
 ```bash
 bin/kafka-console-producer.sh --bootstrap-server localhost:9092 \
@@ -387,7 +402,7 @@ bin/kafka-console-producer.sh --bootstrap-server localhost:9092 \
 > how are you
 ```
 
-## Step 9 — Consumer test
+## Step 9 — Consumer test [40:15]
 
 ```bash
 bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 \
