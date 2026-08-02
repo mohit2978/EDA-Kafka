@@ -6,13 +6,17 @@
 
 ---
 
-### 1. Creation of Topic
+**Source video:** [Kafka Architecture - Part3](https://www.youtube.com/watch?v=TQLGDfJdXrQ) (33:29)
+
+*Timestamps below were added after watching the video at 3x speed to verify these notes against it. Nothing existing was removed — only timestamps and one small verified addition (the dedicated-vs-dual-role controller note) were made. Two sections — "controllers can say NO / term number" and "High Watermark" — are flagged below because they read as supplementary explanations rather than a literal narrated segment of this video; see the notes at those sections.*
+
+### 1. Creation of Topic `[Part3 ~0:27–0:56]`
 
 When you run `kafka-topics.sh --create`, the request reaches the controller. It creates the topic record, splits it into N partitions, and decides which broker hosts which partition — all written to `_cluster_metadata.log`.
 
 ---
 
-### 2. Elect partition leaders and followers
+### 2. Elect partition leaders and followers `[Part3 ~0:27–0:56]`
 
 For every partition the controller decides:
 
@@ -26,7 +30,7 @@ It spreads leaders evenly so no single broker is overloaded. Also re-runs this e
 
 ---
 
-### 3. Detect broker failures — via heartbeats
+### 3. Detect broker failures — via heartbeats `[Part3 ~0:27–0:56]`
 
 ```
 Every broker sends a heartbeat to the controller every few seconds.
@@ -39,7 +43,7 @@ Once controller detects failure it immediately triggers a new leader election fo
 
 ---
 
-### 4. Notify all brokers about changes
+### 4. Notify all brokers about changes `[Part3 ~0:27–0:56]`
 
 After any change (new topic, broker crash, leader change) the controller broadcasts the updated metadata to every broker in the cluster:
 
@@ -50,6 +54,20 @@ After any change (new topic, broker crash, leader change) the controller broadca
 
 All brokers now know where to send P2 traffic.
 Producers and consumers automatically redirect.
+```
+
+---
+
+### Controller node: dedicated vs dual-role `[Part3 ~0:56–1:57]` *(added from video — not in original notes)*
+
+```
+A Controller node can either:
+  - have DUAL responsibility: Normal Broker role + Controller role (same process does both)
+  or
+  - have JUST 1 responsibility: Controller role only (dedicated controller node)
+
+For simplicity, the rest of the explanation assumes a dedicated
+Controller node (just the Controller role, no broker duties).
 ```
 
 ---
@@ -75,7 +93,7 @@ Every broker in the cluster has a copy of this metadata. The controller is the o
 Here controller has only one responsibility i.e. Controlling the broker!!All clsuter info is stored in `cluster_metadata.log`
 
 
-## RF--> Replication factor
+## RF--> Replication factor `[Part3 ~1:57–4:44]`
 
 ![alt text](image-12.png)
 
@@ -163,7 +181,7 @@ Replication factor is the **promise** of how many copies exist. ISR is the **rea
 
 ---
 
-### Step 1 — Producer / Admin CLI
+### Step 1 — Producer / Admin CLI `[Part3 ~4:44]`
 
 ```bash
 # This is what your diagram's red text shows
@@ -178,7 +196,7 @@ You don't need to know which broker is the controller. You just connect to **any
 
 ---
 
-### Step 2 — Any Broker → Controller
+### Step 2 — Any Broker → Controller `[Part3 ~4:44–6:41]`
 
 ```
 You → Broker4 (random)
@@ -190,7 +208,7 @@ Every broker always knows who the current controller is via the cluster metadata
 
 ---
 
-### Step 3 — Controller does 3 things
+### Step 3 — Controller does 3 things `[Part3 ~4:44–6:41]`
 
 ```
 1. Creates topic record
@@ -236,7 +254,7 @@ Topic is now live. Producer can start sending events.
 
 ---
 
-### Image 1 — The problem and the loop question
+### Image 1 — The problem and the loop question `[Part3 ~6:41–8:20]`
 
 Your notes ask the right question:
 
@@ -257,7 +275,7 @@ Answer: NO — they coordinate THEMSELVES
 
 ---
 
-### Image 2 — ZooKeeper vs KRaft
+### Image 2 — ZooKeeper vs KRaft `[Part3 ~8:20–10:02]`
 
 KRaft is inside Controller only but zookeper was a separate service
 
@@ -275,7 +293,7 @@ Deprecated in Kafka 3.x          Default since Kafka 3.3+
 
 ---
 
-### Image 3 — Why single controller is a bottleneck
+### Image 3 — Why single controller is a bottleneck `[Part3 ~10:02]`
 
 If the one controller dies — everything it does stops:
 
@@ -293,7 +311,7 @@ Result: cluster is completely unavailable
 
 ---
 
-### Image 4 — The solution: Multiple controllers
+### Image 4 — The solution: Multiple controllers `[Part3 ~10:02–13:23]`
 
 Your diagram shows the full picture perfectly:
 
@@ -315,7 +333,7 @@ read from brokers independently.
 
 ---
 
-### The key insight — how controllers coordinate themselves
+### The key insight — how controllers coordinate themselves `[Part3 ~10:02–13:23]`
 
 ```
 OLD way (ZooKeeper):
@@ -340,7 +358,7 @@ NEW way (KRaft):
 
 ---
 
-### Image 1 — The loop problem and KRaft answer
+### Image 1 — The loop problem and KRaft answer `[Part3 ~13:23]`
 
 Your notes ask exactly the right question:
 
@@ -363,7 +381,7 @@ Real answer: KRaft — controllers vote among THEMSELVES
 
 >Quoram means majority of nodes.
 
-### Image 2 — When quorum is used
+### Image 2 — When quorum is used `[Part3 ~13:23]`
 
 ```
 Quorum fires for TWO types of decisions:
@@ -381,7 +399,7 @@ Quorum fires for TWO types of decisions:
 
 ---
 
-### Image 3 — The full 7-step flow explained
+### Image 3 — The full 7-step flow explained `[Part3 ~13:23–19:52]`
 
 ```
 Step 1: Admin CLI sends "create order-events, 3P, RF=2"
@@ -416,7 +434,7 @@ Step 7: Active Controller notifies ALL brokers
 
 ---
 
-### The key insight from your notes
+### The key insight from your notes `[Part3 ~13:23–19:52]`
 
 ```
 Why wait for quorum before committing?
@@ -438,6 +456,7 @@ This is the entire reason KRaft exists — **no single controller crash can ever
 
 ![alt text](image-13.png)
 
+*`[Video check]` This 5-controller A/B/C/D/E cascading-failure walkthrough is an illustrative extension of the quorum concept, not a segment I could find narrated in the video itself. The video does cover quorum and the concrete 3-controller election/commit flow in detail around `[Part3 ~13:23–19:52]`, but not this specific multi-failure scenario — this image/explanation looks like supplementary material generated to answer a follow-up question, so treat the content as correct but not video-timestamped.*
 
  You are thinking deeply. YES — controllers **can and do say NO**. Let me explain exactly when a controller votes NO and why.
  
@@ -513,6 +532,8 @@ coming back and thinking it is still the leader.
 
 
 ![alt text](kafka_high_watermark.svg)
+
+*`[Video check]` The presenter does say the words "high watermark" once in passing around `[Part3 ~16:43]`, while walking through the commit flow, but doesn't stop for a dedicated High Watermark explanation at that point in this video — no on-screen HW analogy/example/LEO comparison like this was found elsewhere in Part3 either. This section reads as supplementary material (correct and worth keeping), just not tied to one exact video timestamp.*
 
  High watermark is one of the most important concepts in Kafka — it decides **which events consumers are allowed to read**.
 
@@ -613,7 +634,7 @@ Your notes show a crucial detail — the **heartbeat carries the last committed 
 
 ---
 
-### What happens in the heartbeat
+### What happens in the heartbeat `[Part3 ~19:52–20:04]`
 
 The heartbeat is not just a "I am alive" ping. It carries a **payload**:
 
@@ -689,7 +710,7 @@ This is the final piece of the puzzle. The heartbeat serves two purposes — det
 
 ---
 
-### What ISR is
+### What ISR is `[Part3 ~20:04]`
 
 ```
 ISR = In-Sync Replica
@@ -701,7 +722,7 @@ It is updated dynamically as followers fall behind or catch up.
 
 ---
 
-### Your exact example from the notes
+### Your exact example from the notes `[Part3 ~20:04–23:25]`
 
 ```
 Topic: order-events   Partition: 1   RF: 3
@@ -717,7 +738,7 @@ Broker3 temporarily removed.
 
 ---
 
-### The config that controls removal
+### The config that controls removal `[Part3 ~23:25–26:46]`
 
 ```java
 # application.properties (broker config)
@@ -729,7 +750,7 @@ If it catches up again → automatically added back to ISR
 
 ---
 
-### Why ISR is the most important safety mechanism
+### Why ISR is the most important safety mechanism `[Part3 ~23:25–26:46]`
 
 ```
 Leader B1 crashes. Controller must elect new leader.
@@ -765,7 +786,7 @@ This is exactly why Kafka never elects a leader from outside the ISR. The ISR is
 
 ---
 
-### Image 1 — How leader detects out-of-sync
+### Image 1 — How leader detects out-of-sync `[Part3 ~26:46]`
 
 ```java
 // Broker config
@@ -784,7 +805,7 @@ Important — the **leader detects** but the **controller decides and updates** 
 
 ---
 
-### Image 2 — Why ISR matters for producers
+### Image 2 — Why ISR matters for producers `[Part3 ~26:46–30:07]`
 
 ```
 ack=all means:
@@ -798,7 +819,7 @@ This is why ISR exists — it defines WHO must confirm for ack=all
 
 ---
 
-### Image 3 — Three ACK values
+### Image 3 — Three ACK values `[Part3 ~30:07–32:22]`
 
 ```
 ack=0:   Producer fires and forgets. No wait. Fastest. Can lose data.
@@ -815,7 +836,7 @@ ack=all: ALL ISR members write → then ACK.
 
 ---
 
-### Image 4 — min.insync.replicas prevents silent failure
+### Image 4 — min.insync.replicas prevents silent failure `[Part3 ~32:22–33:27]`
 
 ```
 Problem without min.insync.replicas:
@@ -836,7 +857,7 @@ Better to fail loudly than lose data silently.
 
 ---
 
-### The golden production config
+### The golden production config `[Part3 ~32:22–33:27, leads straight into Part4]`
 
 ```java
 # application.properties — production standard

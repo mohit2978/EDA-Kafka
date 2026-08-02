@@ -1,4 +1,10 @@
-## min.insync.replicas — what if ISR becomes empty?
+**Source videos:**
+- Part4: [Kafka Architecture - Part4](https://www.youtube.com/watch?v=5phy_mbrOBw) (28:41)
+- Part5: [Kafka Architecture - Part5](https://www.youtube.com/watch?v=OaBkjyqS7jU) (16:33)
+
+*Timestamps below were added after watching both videos at 2x speed to verify these notes against the videos. Nothing existing was removed — only timestamps and a couple of small verified additions were made.*
+
+## min.insync.replicas — what if ISR becomes empty? `[Part4 ~0:00–0:30]`
 
 ISR can never become fully empty on its own — there is a cluster metadata setting that guards this:
 
@@ -13,7 +19,7 @@ So Kafka fails loudly (partition unavailable) instead of silently continuing wit
 
 ---
 
-## Complete Flow — Producer Write
+## Complete Flow — Producer Write `[Part4 ~0:30–8:36]`
 
 ![alt text](image-p25-1.png)
 
@@ -49,7 +55,7 @@ Note: the producer never needs to know which broker is the controller — it jus
 
 ---
 
-## Complete Flow — Consumer Read
+## Complete Flow — Consumer Read `[Part4 ~8:36–22:56]`
 
 ![alt text](image-p26-3.png)
 
@@ -111,7 +117,7 @@ internally, consumer commit acts like ack=all.
 
 ---
 
-## Log Compaction Strategies
+## Log Compaction Strategies `[Part4 ~22:56–25:44]`
 
 Two policies control how Kafka cleans up old log segments:
 
@@ -186,9 +192,9 @@ Does NOT guarantee immediate cleanup
 
 ---
 
-## Why is Kafka so fast despite reading/writing to disk?
+## Why is Kafka so fast despite reading/writing to disk? `[Part4 ~25:44–28:41]`
 
-### Page Cache Optimization for Writes
+### Page Cache Optimization for Writes `[Part4 ~25:44–27:56]`
 
 ```
 Kafka trusts the OS for caching log files efficiently.
@@ -206,7 +212,7 @@ Sequential write (best case for disks) — because Kafka is APPEND-ONLY:
 Leader Broker "writes to disk" → RAM (OS Page Cache) → Asynchronously flush to Disk
 ```
 
-### Zero-Copy Optimization for Reads
+### Zero-Copy Optimization for Reads `[Part4 ~27:56–28:41]`
 
 Normal disk read flow:
 
@@ -229,9 +235,9 @@ Advantages:
 
 ---
 
-## Edge Cases and Failure Scenarios
+## Edge Cases and Failure Scenarios `[Part5, whole video — 0:00–16:32]`
 
-### 1. Active Controller fails
+### 1. Active Controller fails `[Part5 ~0:23–3:20]`
 
 ```
 Initial State:
@@ -250,7 +256,7 @@ Election starts:
 Impact: New leader elected, cluster continues.
 ```
 
-### 2. Leader Partition fails
+### 2. Leader Partition fails `[Part5 ~3:20–4:59]`
 
 ```
 Setup: Partition 0 (RF=3)
@@ -272,7 +278,7 @@ Step6: System resumes normal operation
 Impact: NO data loss (new leader has all committed data). Automatic recovery.
 ```
 
-### 3. Follower Partition fails
+### 3. Follower Partition fails `[Part5 ~4:59–7:30]`
 
 ```
 Setup: Partition 0 (RF=3)
@@ -295,16 +301,16 @@ Step7: Broker3 added back to ISR
 Impact: NO data loss. NO downtime.
 ```
 
-### 4. Topic fails?
+### 4. Topic fails? `[Part5 ~7:30–7:50]`
 
 ```
 Trick question — a Topic never "fails". It's just a logical category/folder.
 It's the PARTITION that can fail (covered above).
 ```
 
-### 5. Consumer fails
+### 5. Consumer fails `[Part5 ~7:50–14:54]`
 
-**Scenario 1 — Consumer crashes BEFORE committing offset (manual commit, batch-wise):**
+**Scenario 1 — Consumer crashes BEFORE committing offset (manual commit, batch-wise):** `[Part5 ~7:50–9:57]`
 
 ```
 Step1: Consumer polls events (offsets 100-199)
@@ -318,7 +324,7 @@ Step7: Consumer reprocesses events 100-150 (DUPLICATES)
 Result: At-least-once delivery (duplicates possible).
 ```
 
-**Scenario 2 — Consumer heartbeat timeout (long processing time):**
+**Scenario 2 — Consumer heartbeat timeout (long processing time):** `[Part5 ~9:57–14:54]`
 
 ```
 Step1: Consumer polls events
@@ -332,6 +338,11 @@ Step8: Original consumer tries to commit
 Step9: Group coordinator rejects commit (consumer not in group anymore)
 
 Result: Wasted processing.
+```
+
+*Note (added from video, `[Part5 ~11:36–13:15]`): after Step5/6, the video walks through a worked example on the whiteboard of exactly how the rebalance reassigns partitions — consumers C1/C2/C3 and partitions across brokers B1/B2/B3 get re-mapped so the partitions previously owned by the "dead" consumer are picked up by the remaining consumers in the group. The notes above already capture the "what" (rebalance triggers, partitions get reassigned); this is just the concrete walk-through of the "how," not a new concept.
+
+```
 
 Solution:
   1. Increase max.poll.interval.ms
@@ -340,7 +351,7 @@ Solution:
   4. Use a separate thread pool for processing
 ```
 
-### 6. Broker fails
+### 6. Broker fails `[Part5 ~14:54–16:32]`
 
 ```
 Setup: Cluster: 3 brokers. Topic: order-events (6 partitions, RF=3)
