@@ -191,12 +191,38 @@ kafka-topics.sh --create \
   --replication-factor 2 \
   --bootstrap-server localhost:9092
 ```
+Or from Java:
 
+```java
+@Configuration
+public class KafkaTopicConfig {
+
+    @Bean
+    public NewTopic orderEventsTopic() {
+        return TopicBuilder.name("order-events")
+            .partitions(3)
+            .replicas(2)       // replication factor = 2
+            .build();
+        // Spring auto-creates this on startup
+    }
+}
+```
 You don't need to know which broker is the controller. You just connect to **any** broker.
 
 ---
 
 ### Step 2 — Any Broker → Controller `[Part3 ~4:44–6:41]`
+
+You connect to **any** broker — you don't need to know which one is the controller. Every broker knows who the controller is and forwards the request automatically.
+
+```
+bootstrap-servers=broker1:9092,broker2:9092,broker3:9092
+         ↓
+Your client connects to broker1 (or whichever responds first)
+         ↓
+Broker1 knows: "controller is Broker2, forwarding request"
+```
+
 
 ```
 You → Broker4 (random)
@@ -223,6 +249,56 @@ Every broker always knows who the current controller is via the cluster metadata
    "Broker1 — you hold P0 as leader, P2 as follower"
    "Broker2 — you hold P1 as leader, P0 as follower"
    "Broker3 — you hold P2 as leader, P1 as follower"
+```
+
+The controller does 5 things in order:
+
+```
+1. Validates request
+   → is replication-factor ≤ number of brokers? (RF=2, brokers=3 ✓)
+
+2. Creates topic record
+   → topic "order-events" now officially exists
+
+3. Creates 3 partitions
+   → P0, P1, P2
+
+4. Assigns leader + follower for each partition (round-robin)
+   → P0: leader=B1, follower=B2
+   → P1: leader=B2, follower=B3
+   → P2: leader=B3, follower=B1
+
+5. Updates _cluster_metadata.log
+   → permanent record of who holds what
+```
+
+### Step 4 — Controller notifies each broker
+
+```
+Controller → Broker 1: "You hold P0 as leader, P2 as follower"
+Controller → Broker 2: "You hold P1 as leader, P0 as follower"
+Controller → Broker 3: "You hold P2 as leader, P1 as follower"
+
+Each broker immediately creates the partition folders on disk:
+  Broker1/kafka-logs/order-events-0/  ← empty, ready for events
+  Broker1/kafka-logs/order-events-0/00000000000000000000.log
+  Broker1/kafka-logs/order-events-0/00000000000000000000.index
+```
+
+---
+
+### Why RF=2 means each partition appears on 2 brokers
+
+```
+RF = 2 means every partition has 2 copies total (1 leader + 1 follower)
+
+P0 → exists on Broker1 (leader) AND Broker2 (follower) → 2 copies ✓
+P1 → exists on Broker2 (leader) AND Broker3 (follower) → 2 copies ✓
+P2 → exists on Broker3 (leader) AND Broker1 (follower) → 2 copies ✓
+
+If RF = 3:
+P0 → Broker1 (leader) + Broker2 (follower) + Broker3 (follower) → 3 copies
+Can survive 2 broker failures. Production standard.
 ```
 
 ---
