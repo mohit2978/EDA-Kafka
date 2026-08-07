@@ -1,21 +1,3 @@
-**Source videos:**
-- Part4: [Kafka Architecture - Part4](https://www.youtube.com/watch?v=5phy_mbrOBw) (28:41)
-- Part5: [Kafka Architecture - Part5](https://www.youtube.com/watch?v=OaBkjyqS7jU) (16:33)
-
-*Timestamps below were added after watching both videos at 2x speed to verify these notes against the videos. Nothing existing was removed — only timestamps and a couple of small verified additions were made.*
-
-## min.insync.replicas — what if ISR becomes empty? `[Part4 ~0:00–0:30]`
-
-ISR can never become fully empty on its own — there is a cluster metadata setting that guards this:
-
-```
-min.insync.replicas = 2
-
-Tells: minimum number of replicas that must be present in ISR.
-If ISR count drops below this → Partition becomes UNAVAILABLE.
-```
-
-So Kafka fails loudly (partition unavailable) instead of silently continuing with zero safe replicas.
 
 ---
 

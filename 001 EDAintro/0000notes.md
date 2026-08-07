@@ -1,5 +1,8 @@
 # EDA (Event Driven Architecture) — Introduction
 
+![alt text](image.png)
+
+![alt text](image-1.png)
 ## What is EDA?
 
 ```
