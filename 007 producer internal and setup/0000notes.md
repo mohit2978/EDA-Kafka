@@ -1,4 +1,4 @@
-# Producer Internals and Setup [00:00]
+# Producer Internals and Setup 
 
 Cluster we already set up (2 Brokers + 2 Controllers), producer/consumer sit outside it:
 

@@ -1,11 +1,14 @@
+ 
+![alt text](image.png)
 
----
-
-## Complete Flow — Producer Write `[Part4 ~0:30–8:36]`
+## Complete Flow — Producer Write(video-5)
 
 ![alt text](image-p25-1.png)
 
-By this point: Topic is created, Leader/Follower assignment is decided, and all Brokers have been updated with Cluster Metadata (via the Controller). This is the full picture — Producer1 writes to Broker-1 (P0 leader), Broker-2 holds P1 leader + P2 follower, Controllers exchange heartbeats/metadata updates, and two independent Consumer Groups (notification, analytics) read from the brokers.
+By this point: Topic is created, Leader/Follower assignment is decided, and all Brokers have been updated with Cluster Metadata (via the Controller). 
+
+
+This is the full picture — Producer1 writes to Broker-1 (P0 leader), Broker-2 holds P1 leader + P2 follower, Controllers exchange heartbeats/metadata updates, and two independent Consumer Groups (notification, analytics) read from the brokers.
 
 ![alt text](image-p26-2.png)
 
@@ -13,7 +16,7 @@ By this point: Topic is created, Leader/Follower assignment is decided, and all 
 
 ```
 Step1: Producer creates event
-Step2: Producer requests metadata (first time or on refresh)
+Step2: Producer requests metadata to any broker (first time or on refresh)
        → Broker-1 (any broker) asks Active Controller: "give me metadata"
        → Controller responds with metadata:
          topic: order-events
@@ -37,7 +40,7 @@ Note: the producer never needs to know which broker is the controller — it jus
 
 ---
 
-## Complete Flow — Consumer Read `[Part4 ~8:36–22:56]`
+## Complete Flow — Consumer Read 
 
 ![alt text](image-p26-3.png)
 
@@ -47,15 +50,19 @@ Step1: Consumer starts, wants to join Group
 Step2: Finds the Partition number of internal topic "_consumer_offsets"
        hash("notification-service-group-id") % 50 = 23
        → Partition 23 of topic _consumer_offsets
-Step3: Consumer requests metadata (first time or refresh)
+Step3: Consumer requests metadata it asks any broker (first time or refresh)
        → Broker-1 (any broker) asks Active Controller → gets metadata back
 ```
+ Everything is handled by kafka .producer and consumer are clients
 
 ![alt text](image-p26-4.png)
+
+In case of consumer Leader is called as `Group coordinator`
 
 ```
 Step4: Invokes Broker3 (Group Coordinator) and requests to join the
        "notification-service" group
+
 Step5: Broker3 (group coordinator):
          Group: notification-service
          Topic: order-events
@@ -64,19 +71,26 @@ Step5: Broker3 (group coordinator):
            Consumer2 → handles Partition-1
            Consumer3 → handles Partition-2
        Once all followers get the latest update, Group Coordinator responds:
-       "Partition-2 assigned for topic order-events"
-Step6: Consumer fetches last committed offset for Topic "order-events" Partition-2
+       "Partition-2 assigned for topic order-events". we need all followers 
+       to acknowledge . There is no option for `ack=0` for consumer
+
+Step6: Consumer fetches last committed offset for 
+       Topic "order-events"              
+       Partition-2.So it goes to Group coordinator
+
 Step7: Broker3 (Group Coordinator) looks at "_consumer_offsets"
        Creates a key: group.id_topic_partition
-       key: "notificationGroupId_order-events_Partition-2"
-       value: offset 100
+       key: "notificationGroupId_order-events_Partition-2" and get value
+       `value: offset 100` So we have read till 100 ,we need to start from 101
+
 Step8: Check the metadata and invoke Leader Broker of Topic "order-events"
        Partition-2 → fetch from offset 101, max bytes send: 200bytes
+
 Step9: Broker2 (leader of Topic "order-events" Partition-2) returns offset
        101-501 events
 ```
 
-![alt text](image-p29-6.png)
+
 
 ```
 Step10: Consumer processes events
@@ -99,7 +113,7 @@ internally, consumer commit acts like ack=all.
 
 ---
 
-## Log Compaction Strategies `[Part4 ~22:56–25:44]`
+## Log Compaction Strategies
 
 Two policies control how Kafka cleans up old log segments:
 
@@ -154,7 +168,7 @@ Before compaction (offset | key | record):
 103  user3  v1
 104  user2  v2
 ```
-
+ duplicates key old key values deleted
 After compaction — only the latest value per key survives:
 
 ```
@@ -174,9 +188,10 @@ Does NOT guarantee immediate cleanup
 
 ---
 
-## Why is Kafka so fast despite reading/writing to disk? `[Part4 ~25:44–28:41]`
+## Why is Kafka so fast despite reading/writing to disk? `
 
-### Page Cache Optimization for Writes `[Part4 ~25:44–27:56]`
+![alt text](image-p29-6.png)
+### Page Cache Optimization for Writes
 
 ```
 Kafka trusts the OS for caching log files efficiently.
@@ -188,13 +203,13 @@ Sequential write (best case for disks) — because Kafka is APPEND-ONLY:
   Only ever writes at the end → disk head keeps moving forward
 ```
 
-![alt text](image-p26-2.png)
+
 
 ```
 Leader Broker "writes to disk" → RAM (OS Page Cache) → Asynchronously flush to Disk
 ```
 
-### Zero-Copy Optimization for Reads `[Part4 ~27:56–28:41]`
+### Zero-Copy Optimization for Reads
 
 Normal disk read flow:
 
@@ -207,7 +222,7 @@ Kafka's flow (using the `sendfile()` system call):
 ```
 Disk → OS Page Cache → Network   (skips User Space entirely)
 ```
-
+kafka do not use data to User Space,No copy is maintained in kafka JVM
 ```
 Advantages:
   Data copy time and memory saved
@@ -217,9 +232,11 @@ Advantages:
 
 ---
 
-## Edge Cases and Failure Scenarios `[Part5, whole video — 0:00–16:32]`
+## Edge Cases and Failure Scenarios (video-6)
 
-### 1. Active Controller fails `[Part5 ~0:23–3:20]`
+![alt text](image-1.png)
+
+### 1. Active Controller fails 
 
 ```
 Initial State:
@@ -238,7 +255,7 @@ Election starts:
 Impact: New leader elected, cluster continues.
 ```
 
-### 2. Leader Partition fails `[Part5 ~3:20–4:59]`
+### 2. Leader Partition fails 
 
 ```
 Setup: Partition 0 (RF=3)
@@ -260,7 +277,7 @@ Step6: System resumes normal operation
 Impact: NO data loss (new leader has all committed data). Automatic recovery.
 ```
 
-### 3. Follower Partition fails `[Part5 ~4:59–7:30]`
+### 3. Follower Partition fails 
 
 ```
 Setup: Partition 0 (RF=3)
@@ -283,16 +300,16 @@ Step7: Broker3 added back to ISR
 Impact: NO data loss. NO downtime.
 ```
 
-### 4. Topic fails? `[Part5 ~7:30–7:50]`
+### 4. Topic fails? 
 
 ```
 Trick question — a Topic never "fails". It's just a logical category/folder.
 It's the PARTITION that can fail (covered above).
 ```
 
-### 5. Consumer fails `[Part5 ~7:50–14:54]`
+### 5. Consumer fails 
 
-**Scenario 1 — Consumer crashes BEFORE committing offset (manual commit, batch-wise):** `[Part5 ~7:50–9:57]`
+**Scenario 1 — Consumer crashes BEFORE committing offset (manual commit, batch-wise):** 
 
 ```
 Step1: Consumer polls events (offsets 100-199)
@@ -306,7 +323,7 @@ Step7: Consumer reprocesses events 100-150 (DUPLICATES)
 Result: At-least-once delivery (duplicates possible).
 ```
 
-**Scenario 2 — Consumer heartbeat timeout (long processing time):** `[Part5 ~9:57–14:54]`
+**Scenario 2 — Consumer heartbeat timeout (long processing time):** 
 
 ```
 Step1: Consumer polls events
@@ -333,7 +350,7 @@ Solution:
   4. Use a separate thread pool for processing
 ```
 
-### 6. Broker fails `[Part5 ~14:54–16:32]`
+### 6. Broker fails 
 
 ```
 Setup: Cluster: 3 brokers. Topic: order-events (6 partitions, RF=3)

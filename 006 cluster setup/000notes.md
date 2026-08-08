@@ -1,5 +1,4 @@
-# Kafka Cluster Setup [00:00]
-
+# Kafka Cluster Setup 
 Target cluster for this exercise — 2 Controllers + 2 Brokers:
 
 ![alt text](image-p1-1.png)
@@ -402,7 +401,7 @@ bin/kafka-console-producer.sh --bootstrap-server localhost:9092 \
 > how are you
 ```
 
-## Step 9 — Consumer test [40:15]
+## Step 9 — Consumer test 
 
 ```bash
 bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 \
