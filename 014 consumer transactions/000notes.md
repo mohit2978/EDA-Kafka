@@ -1,4 +1,3 @@
-# 16: Transaction in Kafka (Consumer)
 
 Broker has the records, and below are the 3 possible use cases:
 

@@ -1,4 +1,4 @@
-# EDA (Event Driven Architecture) — Introduction
+
 
 ![alt text](image.png)
 

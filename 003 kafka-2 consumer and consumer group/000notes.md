@@ -1,3 +1,5 @@
+One consumer of a consumer group can read from one partition as Consumer group has information that we have read till this offset ,This information is as per consumer group not as per consumer ,so if multiple consumers read from a consumer group then which offset will consumer group store.
+
 ![alt text](image-1.png)
 
 ![alt text](image-9.png)

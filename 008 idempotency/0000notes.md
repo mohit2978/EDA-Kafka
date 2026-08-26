@@ -1,4 +1,4 @@
-# Idempotency [00:00]
+
 
 Recall the setup that causes trouble:
 

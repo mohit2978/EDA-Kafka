@@ -1,5 +1,3 @@
-# 18: Outbox Pattern
-
 ## Before we go deep — understand the PROBLEM
 
 ```java
@@ -46,13 +44,13 @@ Result:
 
 This is **DATA INCONSISTENCY** and has more impact than Scenario 1.
 
-This problem is known as the **DUAL WRITE problem**.
+###  This problem is known as the **DUAL WRITE problem**.
 
 ---
 
 ## Solutions generally proposed during interviews (and why they don't work)
 
-![@Transactional + manual rollback vs 2PC coordinator flow](images/01-2pc-diagram.png)
+Generally people gives two answers to this :
 
 ### Attempt 1: `@Transactional` + Manual Exception Throw
 
@@ -98,6 +96,8 @@ Still inconsistent — just flipped.
 
 ### Attempt 2: 2PC (Two Phase Commit)
 
+![@Transactional + manual rollback vs 2PC coordinator flow](images/01-2pc-diagram.png)
+
 ```
 Coordinator
   -> Phase1: PREPARE  -> DB:    Yes Ready
@@ -134,6 +134,8 @@ public void createOrder(OrderRequest request) {
 
 Both writes (`orders` table + `outbox_events` table) are now just two tables in the **same database** — so they *can* be part of one local DB transaction. No Kafka publish happens inside this transaction at all.
 
+Here you can give any name to table but we generally give `Outbox` and also two processes we talking about is `Poller` and `CDC`
+
 ### Outbox Table Schema
 
 - It's just a regular DB table in our application.
@@ -147,11 +149,14 @@ Both writes (`orders` table + `outbox_events` table) are now just two tables in 
 
 - **Id**: unique id for this event. Since a producer can publish the same event multiple times, this can be used for idempotency.
 - **Aggregate_type**: what entity this event is about, e.g. `"ORDER"` or `"PAYMENT"`. Used to determine which Kafka topic to publish to.
-- **Event_type**: tells what happened to the entity — `ORDER_CREATED`, `ORDER_CANCELLED`, etc.
+- **Event_type**: tells what happened to the entity — `ORDER_CREATED`, `ORDER_CANCELLED`, etc.Generally we do not use it but just for extra context.
+
 - **Aggregate_id**: used as the Kafka message Key. Since all related events should go to the same partition, this plays a major role in maintaining order.
 - **Payload**: the actual data.
 - **Created_At**: when the event was created.
 - **Is_published** (optional): `false` -> not yet sent to Kafka, `true` -> sent to Kafka (row can be cleaned up later).
+
+---
 
 **The Outbox Table is consumed in 2 ways:**
 
@@ -305,6 +310,34 @@ public class OutboxEvent {
     // --- Getters and Setters ---
 }
 ```
+**application.properties**
+
+```properties
+server.port=8085
+spring.application.name=outbox-polling-demo
+
+# PostgreSQL Connection
+spring.datasource.url=jdbc:postgresql://localhost:5432/orderdb
+spring.datasource.username=postgres
+spring.datasource.password=postgres
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+# JPA / Hibernate
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+
+# Kafka Producer Config
+spring.kafka.bootstrap-servers=localhost:9092
+spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer
+spring.kafka.producer.value-serializer=org.apache.kafka.common.serialization.StringSerializer
+spring.kafka.producer.acks=all
+
+# Outbox Poller Config (custom property)
+outbox.polling.interval-ms=2000
+outbox.polling.batch-size=10
+```
 
 **OutboxPoller.java (the poller)**
 
@@ -353,34 +386,7 @@ public class OutboxPoller {
 
 This scheduler is just one example of a poller — you could also have a completely separate application that keeps polling the outbox table, and once it finds events, simply invokes the publisher method.
 
-**application.properties**
 
-```properties
-server.port=8085
-spring.application.name=outbox-polling-demo
-
-# PostgreSQL Connection
-spring.datasource.url=jdbc:postgresql://localhost:5432/orderdb
-spring.datasource.username=postgres
-spring.datasource.password=postgres
-spring.datasource.driver-class-name=org.postgresql.Driver
-
-# JPA / Hibernate
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=true
-spring.jpa.properties.hibernate.format_sql=true
-spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
-
-# Kafka Producer Config
-spring.kafka.bootstrap-servers=localhost:9092
-spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer
-spring.kafka.producer.value-serializer=org.apache.kafka.common.serialization.StringSerializer
-spring.kafka.producer.acks=all
-
-# Outbox Poller Config (custom property)
-outbox.polling.interval-ms=2000
-outbox.polling.batch-size=10
-```
 
 ### Disadvantages of Polling
 
@@ -425,12 +431,64 @@ outbox.polling.batch-size=10
 
 ---
 
+## Publication
+
+A **publication** in PostgreSQL is a named set of changes (from tables) that gets replicated to subscribers, used as part of **logical replication**.
+
+## What it is
+
+Introduced in PostgreSQL 10, a publication defines *what data* should be replicated from a source ("publisher") database. You create it on the database you want to replicate **from**:
+
+```sql
+-- Publish all changes on specific tables
+CREATE PUBLICATION my_pub FOR TABLE orders, customers;
+
+-- Publish all tables in the database
+CREATE PUBLICATION all_pub FOR ALL TABLES;
+
+-- Publish only certain operations
+CREATE PUBLICATION insert_only_pub FOR TABLE orders
+  WITH (publish = 'insert');
+```
+
+A publication tracks INSERT, UPDATE, DELETE, and TRUNCATE operations (by default all four) on the tables it includes.
+
+On the receiving side, you create a **subscription** that connects to the publisher and consumes these changes:
+
+```sql
+CREATE SUBSCRIPTION my_sub
+  CONNECTION 'host=publisher_host dbname=mydb user=repl_user password=secret'
+  PUBLICATION my_pub;
+```
+
+## Why it's used
+
+1. **Selective replication** — Unlike physical (streaming) replication, which copies the *entire* database/cluster, publications let you replicate only specific tables or even specific columns/rows (via row filters and column lists in newer versions), giving fine-grained control.
+
+2. **Cross-version / cross-platform replication** — Logical replication (via publications) works between different major PostgreSQL versions and even different OS platforms, unlike physical replication which requires binary compatibility.
+
+3. **Zero/low-downtime upgrades and migrations** — You can replicate data to a new PostgreSQL version, cut over, and do a near-zero-downtime major version upgrade.
+
+4. **Data distribution / integration** — Feed specific tables to a separate reporting database, a data warehouse, a microservice's local copy, or a different application, without shipping the whole database.
+
+5. **Multi-master / bidirectional setups** — Useful building block for building multi-region or multi-master replication topologies (with appropriate conflict handling).
+
+6. **Real-time ETL / CDC (Change Data Capture)** — Tools like Debezium or custom consumers can subscribe to publications (via logical replication slots) to stream changes into Kafka, other databases, or analytics pipelines.
+
+## Key requirements
+
+- Requires `wal_level = logical` in `postgresql.conf`.
+- Tables generally need a **primary key** (or `REPLICA IDENTITY` set) so UPDATE/DELETE operations can identify the correct row on the subscriber.
+- A publication doesn't do anything by itself — it needs at least one subscription to actually move data.
+
+In short: **publications define what to replicate**, **subscriptions define where it goes and pull the changes** — together they implement PostgreSQL's logical replication.
+
 ## Approach 2: CDC (Change Data Capture)
 
 Another, more scalable solution: **CDC (Change Data Capture)**.
 
 ```
-CDC (Change Data Capture)
+CDC (Change Data Capture)(Technique)
     -> Debezium (Tool which implements CDC)
 ```
 
@@ -444,7 +502,7 @@ Also, the same WAL file is used for replication to followers.
 
 Similarly, in MySQL it's the **Binlog** file which is used for replication to followers.
 
-CDC reads these log files only from the DB.
+CDC reads these log files only from the DB.So WAL is read by process in here.
 
 ### Setting up CDC with Debezium (Postgres)
 
@@ -494,6 +552,7 @@ CREATE TABLE outbox_events (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
+Here we do not need isPublished or something
 
 **Step4: Create Publication**
 
@@ -511,15 +570,21 @@ UPDATE users                -> NOT in publication -> skip
 
 **Step5: Download the CDC tool (Debezium Postgres plugin) and add it to Kafka Connect**
 
+Kafka connect is a connector ,it helps to connect to DB ,all it needs is Plugin.So we add Debezium Postgres plugin.
+
 ![Kafka Connect (with Debezium Postgres plugin) sits alongside the Brokers/Controllers and connects to Postgres DB](images/05-kafka-connect-cluster-architecture.png)
 
 Download Debezium Postgres plugin: `debezium-connector-postgres-3.5.0.Final-plugin.tar.gz` from `https://repo1.maven.org/maven2/io/debezium/debezium-connector-postgres/3.5.0.Final/`
 
-Extract this Debezium plugin into the `plugins` folder inside the Kafka directory. Update `connect-standalone.properties`:
+Extract this Debezium plugin into the `plugins` folder inside the Kafka directory. 
+
+
+Now we need to update kafka connect to use this plugin so we go to config folder of kafka and  Update `connect-standalone.properties`:
 
 ```properties
 plugin.path=/Users/shrayanshjain/Downloads/kafka_2.13-4.2.0/plugins
 ```
+Now to connect plugin to DB
 
 Create `kafka/config/debezium-postgres-connector.properties` — this connects the Debezium plugin to the DB:
 
@@ -538,21 +603,25 @@ database.password=cdctest
 database.dbname=outbox_cdc
 
 # {prefix}.{schema}.{table}
+# optional of no use
 topic.prefix=cdc
 
 # Only watch the outbox_events table (ignore orders table)
 table.include.list=public.outbox_events
 
-# Replication slot name (Postgres will create this)
+# Replication slot name (Postgres will create this) wahtever you want to give
 slot.name=debezium_slot
 
-# Postgres used field that decodes the WAL before it's sent to Debezium
+# Postgres used field that decodes the WAL before it's sent to Debezium so that DebeZium can understand that
 plugin.name=pgoutput
 
 # Start with a snapshot of existing data, then stream
+# to get initial data which is already present and stream the new data
 snapshot.mode=initial
 
+# disabled as already created a publication so no autocreation
 publication.autocreate.mode=disabled
+
 publication.name=cdc_publication
 
 # any name we can give to the transform: event router
@@ -602,6 +671,7 @@ VALUES ('evt-005', 'Order', 'ORD-055', 'ORDER_CREATED',
 
 This row gets **published to Kafka** in topic `"order-events"` — visible via `bin/kafka-dump-log.sh --deep-iteration --print-data-log`, showing the payload landing in the Kafka log file, keyed by `ORD-055`.
 
+So Db is acting as producer too.
 ---
 
 ## Added by Claude

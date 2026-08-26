@@ -1,8 +1,10 @@
-# Producer Internals and Setup 
+
 
 Cluster we already set up (2 Brokers + 2 Controllers), producer/consumer sit outside it:
 
 ![alt text](image-p1-1.png)
+
+Generally for producer we don't need to do anything ,just add `KafkaTemplate` and use `send()` Api of that
 
 When a producer calls `send()`, the message does **not** go straight to a broker over the network. It passes through several internal stages inside the producer first:
 
@@ -14,7 +16,7 @@ Producer.send() ---Send Event---> Kafka Cluster (Kafka Broker)
 
 ---
 
-## Stage 1 — Serializer [02:24]
+## Stage 1 — Serializer 
 
 ![alt text](image-p2-3.png)
 
@@ -27,6 +29,7 @@ POJO, JSON, etc.) — we must choose the right serializer.
 
 If serialization fails, the message never moves to the next stage.
 ```
+Key and value both are serialized
 
 Every serializer implements this interface:
 
@@ -49,14 +52,14 @@ FloatSerializer    → Float
 ShortSerializer    → Short
 JsonSerializer     → any POJO (most useful — converts Java object to bytes)
 Custom Serializer  → when we want full control:
-                       - encrypt data before byte conversion
-                       - remove sensitive fields before sending
-                       - etc.
+                    - encrypt data before byte conversion
+                    - remove sensitive fields before sending
+                    - etc.
 ```
 
 ---
 
-## Stage 2 — Partitioner [05:23]
+## Stage 2 — Partitioner 
 
 ![alt text](image-p4-5.png)
 
@@ -633,7 +636,7 @@ instead — both coexist in the same app.
 
 ---
 
-## Closing thread — message reordering risk (recap) [45:20]
+## Closing thread — message reordering risk (recap)
 
 ```
 When:
