@@ -14,7 +14,7 @@ Kafka Cluster
 
 ---
 
-## Step 1 — Download Kafka Binary [00:49]
+## Step 1 — Download Kafka Binary 
 
 ```
 Download latest Kafka Binary from the official Downloads page.
@@ -26,7 +26,7 @@ to actually understand the moving parts; once understood, Docker is trivial).
 Download gives: kafka_2.13-4.2.0.tgz (+ .asc, .sha512 for verification)
 ```
 
-## Step 2 — Understand each sub-folder [02:04]
+## Step 2 — Understand each sub-folder 
 
 ![alt text](image-p2-2.png)
 
@@ -45,6 +45,10 @@ kafka_2.13-4.2.0/
 
 ![alt text](image-p2-3.png)
 
+Here we have executable scripts.we can produce using CLI .No need of springboot app.
+
+With these script we can start controller,publish message ,consume message,create or delete topic and so on.
+
 Some of the key scripts inside `bin/`: `kafka-server-start.sh`, `kafka-topics.sh`,
 `kafka-console-producer.sh`, `kafka-console-consumer.sh`, `kafka-storage.sh`,
 `kafka-metadata-quorum.sh`, `kafka-consumer-groups.sh`, `kafka-leader-election.sh`, etc.
@@ -61,13 +65,23 @@ config/
                             Controller and Broker
 ```
 
+Always define you own,try to use less of these
+
 ---
 
-## Step 3 — Write the configuration for Controllers [05:20]
+## Step 3 — Write the configuration for Controllers 
+
+ these we put in /config folder.
+
+ We are making dedicated controller ,that's what happen in production. We have 2 controllers.
 
 `controller1.properties`
 
 ```properties
+
+# if acting as broker put broker if acting as both controller and broker put controller,broker
+# for now acting as controller independently
+
 process.roles=controller
 node.id=1
 listeners=CONTROLLER://:9093
@@ -100,7 +114,7 @@ num.partitions=3
 default.replication.factor=2
 ```
 
-### Config field meanings [06:29]
+### Config field meanings 
 
 ```
 process.roles → tells Kafka what role this node performs:
@@ -109,12 +123,15 @@ process.roles → tells Kafka what role this node performs:
   controller, broker   → both (combined node)
 
 node.id → unique id for the node within the cluster
+(we give it)
 
 listeners → list of ports this node opens, each with a logical name.
+
   Internally: new ServerSocket(9093) — a TCP socket waiting for connections.
 
   listeners=CONTROLLER://:9093
-    "CONTROLLER" = logical name (label) for this socket
+    "CONTROLLER" = logical name (label) for this socket(we give it).This logical name has very big importance.
+
     ":9093"      = if IP omitted, Kafka listens on every IP on the machine
                    (specific IP example: CONTROLLER://192.168.1.10:9093)
 
@@ -122,32 +139,51 @@ listeners → list of ports this node opens, each with a logical name.
   listeners=CONTROLLER://:9093,BROKER://:9092
   listeners=CONTROLLER://:9093,INTERNAL://:9092,EXTERNAL://:9094
 
+---------------------------------
 controller.listener.names → of all listeners defined, which one to use for
   controller-to-controller communication (here: "CONTROLLER")
-
+--------------------------------------
 controller.quorum.voters → each controller keeps a static list of nodes that
   act as controllers:
   controller.quorum.voters=1@localhost:9093,2@localhost:9193
 
+  <node-id>@<ip>:<port_no>
+---------------------------------------
 listener.security.protocol.map → which security protocol to use per listener:
   PLAINTEXT → no encryption, no authentication (local/dev use)
   SSL       → TLS encryption (production use)
+
+
   listener.security.protocol.map=CONTROLLER:PLAINTEXT
 
+(In controller to controller communication we always communicate by plainText,we can put more by comma separated) 
+
+---------------------------
 log.dirs → directory where this node stores its data
 
+----------------------------
 num.partitions → default partition count used when a topic is created
   without the CLI/producer specifying one
-
+---------------------------
 default.replication.factor → default RF used for new partitions
 
-offsets.topic.replication.factor → default RF for the internal
-  __consumer_offsets topic
 ```
+in both properties you see listeners we have put `CONTROLLER://:port-no` the name `CONTROLLER` must be same in both.
+
+Controller is one who decide ,this topic ,how many partition ,which broker become leader ,which broker become follower. if you do not specify defualt will be used which we provided above in properties.
+
+Security protocol should match in both controllers.
+
+No of partition and RF can be different in controllers and whichever become leader decide no of partitions and RF.
 
 ---
 
-## Step 4 — Write the configuration for Brokers [15:45]
+
+>Note:consumer related info is put in broker
+
+## Step 4 — Write the configuration for Brokers 
+
+we put in `/config` folder
 
 `broker1.properties`
 
@@ -155,18 +191,23 @@ offsets.topic.replication.factor → default RF for the internal
 process.roles=broker
 node.id=3
 
-# WHERE to fetch metadata from (which controllers to connect to)
+# WHERE to fetch metadata from (which controllers to connect to) static list of controller
 controller.quorum.voters=1@localhost:9093,2@localhost:9193
 
 # This is where our Spring Boot apps (producer/consumer) will connect
+#This is where it is listening for connection.It can open multiple connections
+# here we can provide a list where broker is listening to  so it is passed to controller  by property below called `advertised.listeners`
 listeners=BROKER://:9092
 
 # passed to controller to store in its cluster metadata
+# this is passed to active controller so producer and consumer can connect to it
 advertised.listeners=BROKER://localhost:9092
 
-# internally, when a follower broker fetches from the leader, which listener to use
+# internally, when a follower broker fetches from the leader for some partition, which listener to use
+# broker connects to producer and consumer and as well as in sync with other broker too so that it can know for which partition who is leader
 inter.broker.listener.name=BROKER
 
+# we are using same port for producer consumer as well as for broker too.
 # when broker talks to the controller, which listener name to use
 controller.listener.names=CONTROLLER
 
@@ -183,6 +224,84 @@ log.segment.bytes=1073741824
 # __consumer_offsets topic RF
 offsets.topic.replication.factor=2
 ```
+
+## Explained clearly
+
+```properties
+listeners=BROKER://:9092,INTERNAL://:9098
+advertised.listeners=BROKER://localhost:9092,INTERNAL://localhost:9098
+listener.security.protocol.map=BROKER:PLAINTEXT,INTERNAL:PLAINTEXT
+inter.broker.listener.name=INTERNAL
+```
+
+---
+
+## Line-by-Line Explanation
+
+### 1. `listeners=BROKER://:9092,INTERNAL://:9098`
+This tells the broker **what to bind to and listen on**, on the machine it's running on.
+- `BROKER://:9092` → open port `9092` on all network interfaces (`0.0.0.0`)
+- `INTERNAL://:9098` → open port `9098` on all network interfaces
+
+Blank host before the port (`:9092`) is fine here — it just means "listen on everything." This line is purely about *opening sockets*, not about what address gets told to the outside world.
+
+### 2. `advertised.listeners=BROKER://localhost:9092,INTERNAL://localhost:9098`
+This is what the broker **publishes in its metadata** — the address it tells clients and other brokers to actually connect to.
+
+This is separate from `listeners` because bind address ≠ reachable address. You bind to `0.0.0.0` (everything), but you advertise one specific, real, resolvable hostname/IP per listener — here, `localhost` for both, since (presumably) everything is running on one machine.
+
+Unlike `listeners`, **every entry here must have a real host** — no blanks. If a client can't resolve or reach the advertised address, it can complete the first connection but fail every reconnect afterward, since it always redials using this address.
+
+### 3. `listener.security.protocol.map=BROKER:PLAINTEXT,INTERNAL:PLAINTEXT`
+Your listener names (`BROKER`, `INTERNAL`) are just arbitrary labels you made up — Kafka doesn't know what protocol to speak on each one unless you map it explicitly. This line says: "both `BROKER` and `INTERNAL` speak plaintext (unencrypted, unauthenticated) Kafka protocol."
+
+In production you'd typically see something like `BROKER:SASL_SSL,INTERNAL:SSL` — external traffic encrypted and authenticated, internal traffic possibly just encrypted (since it's within a trusted network).
+
+### 4. `inter.broker.listener.name=INTERNAL`
+This is the line that assigns *purpose* to your listeners. It tells the broker: "when talking to **other brokers** — replication, leader/follower sync, controller communication — use the `INTERNAL` listener."
+
+By elimination, `BROKER` becomes the client-facing listener, since it's not designated for inter-broker use.
+
+---
+
+## How Traffic Actually Flows
+
+```
+Producer/Consumer  ──────────────►  BROKER   (port 9092)
+                                      │
+                                      │ (metadata handshake returns
+                                      │  advertised BROKER address)
+                                      ▼
+                                  Kafka Broker
+                                      │
+                                      │ replication, leader election,
+                                      │ controller traffic
+                                      ▼
+                                  INTERNAL  (port 9098)  ◄──────────►  Other Brokers
+```
+
+- **Producers/Consumers** → connect only to `BROKER` (`9092`). They never see or use `INTERNAL`.
+- **Brokers themselves** → use `INTERNAL` (`9098`) exclusively to replicate data and coordinate with each other and the controller.
+- In real deployments, `INTERNAL` is often on a private network with no external exposure at all — clients would be firewalled off from it entirely, since there's no reason for them to ever reach it.
+
+---
+
+## `controller.listener.names=CONTROLLER`
+
+This one belongs to **KRaft mode** (Kafka's ZooKeeper-free architecture using a built-in Raft-based controller quorum, standard since Kafka 4.0 and default well before that in newer versions). It doesn't apply if you're still running Kafka with ZooKeeper.
+
+### What it does
+It designates which listener is used exclusively for **controller quorum traffic** — the metadata/consensus communication between the nodes acting as controllers (leader election for the cluster metadata itself, propagating metadata changes, etc.). This is separate and distinct from `inter.broker.listener.name`, which handles **data replication** between brokers.
+
+So in KRaft mode you typically end up with *three* categories of traffic, not two:
+
+| Traffic type | Handled by | Example listener |
+|---|---|---|
+| Producer/Consumer ↔ Broker | client-facing listener | `BROKER` |
+| Broker ↔ Broker (data replication) | `inter.broker.listener.name` | `INTERNAL` |
+| Controller quorum (metadata/Raft consensus) | `controller.listener.names` | `CONTROLLER` |
+
+
 
 `broker2.properties` (same idea, different identity/port)
 
@@ -206,8 +325,9 @@ log.retention.hours=168
 log.segment.bytes=1073741824
 offsets.topic.replication.factor=2
 ```
+![alt text](kafka_kraft_cluster_ports.svg)
 
-### Config field meanings [16:15]
+### Config field meanings
 
 ```
 controller.quorum.voters → each broker also maintains the static list of
