@@ -61,9 +61,11 @@ Custom Serializer  → when we want full control:
 
 ## Stage 2 — Partitioner 
 
+At this stage the producer decides: **"Which partition should this message go to?"**
+
 ![alt text](image-p4-5.png)
 
-At this stage the producer decides: **"Which partition should this message go to?"**
+
 
 ```java
 public interface Partitioner {
@@ -77,10 +79,13 @@ public interface Partitioner {
     );  // returns partition number
 }
 ```
+This is input to partitioner an output is partition number.
 
 ![alt text](image-p4-6.png)
 
-### Case 1 — Partition explicitly provided [07:20]
+send() has multiple overloade methods.
+
+### Case 1 — Partition explicitly provided 
 
 ```java
 // KafkaTemplate.java
@@ -93,7 +98,7 @@ public CompletableFuture<SendResult<K,V>> send(String topic, Integer partition, 
 
 Partitioner does nothing here — we already told it the partition.
 
-### Case 2 — Key is provided [07:50]
+### Case 2 — Key is provided 
 
 ```java
 @Override
@@ -105,10 +110,11 @@ public CompletableFuture<SendResult<K,V>> send(String topic, K key, @Nullable V 
 
 ```
 Kafka ensures the same key ALWAYS goes to the same partition:
+
 partition = hash(keyBytes) % numberOfPartitions
 ```
 
-### Case 3 — No key is provided [08:40]
+### Case 3 — No key is provided 
 
 ```java
 @Override
@@ -122,16 +128,16 @@ public CompletableFuture<SendResult<K,V>> send(String topic, @Nullable V data) {
 Pre Kafka 2.4:      Round Robin Partitioning Strategy
 From Kafka 2.4 on:  Sticky Partitioning Strategy
 ```
+We see it later in detail for now just know it.
 
 ---
 
-## Stage 3 — Record Accumulator [10:11]
+## Stage 3 — Record Accumulator 
 
 ![alt text](image-p6-7.png)
 
 ```
-Record Accumulator = in-memory buffer inside the Kafka Producer that
-collects events per topic-partition and groups them into batches.
+Record Accumulator = in-memory buffer inside the Kafka Producer that collects events per topic-partition and groups them into batches.
 
 This is exactly why Kafka Producer achieves very high throughput
 (ability to transmit large volumes of data within a given timeframe).
@@ -139,9 +145,11 @@ This is exactly why Kafka Producer achieves very high throughput
 
 ![alt text](image-p7-8.png)
 
+Accumulator just collect into batches.
+
 Producer always maintains a topic-partition-wise batch, and sends **batches** to the broker — not individual events.
 
-### Round Robin vs Sticky Partitioning (the "no key" case, revisited) [13:30]
+### Round Robin vs Sticky Partitioning (the "no key" case, revisited) 
 
 **Round Robin (pre Kafka 2.4):**
 
@@ -180,15 +188,14 @@ across 3 small batches.
 ```
 
 ```
-Advantage: events stick to the same partition until the CURRENT batch is
-closed or a new batch needs to be created.
+Advantage: events stick to the same partition until the CURRENT batch is closed or a new batch needs to be created.
 → fewer batches → fewer network calls.
 ```
 
-### Controlling batch size [21:50]
+### Controlling batch size 
 
 ```
-Two knobs control the batch:
+Two ways to control the batch size:
 
 1. batch.size = 16384 (16KB, default)
    Maximum memory allocated per partition batch.
@@ -206,7 +213,7 @@ Two knobs control the batch:
 
 ---
 
-## Stage 4 — Compression [24:15]
+## Stage 4 — Compression 
 
 ![alt text](image-p11-12.png)
 
@@ -219,11 +226,13 @@ Example: Batch before compression = 64KB → after compression = 18KB
 Kafka also stores these compressed batches on disk → saves disk space too.
 ```
 
+uncompressed decreases the throughput ,there is default compression used by kafka.
+
 (Compression codec is configured in producer properties — shown in Setup below.)
 
 ---
 
-## Stage 5 — Sender Thread [27:25]
+## Stage 5 — Sender Thread 
 
 ![alt text](image-p12-13.png)
 
@@ -233,7 +242,7 @@ Application thread's job ends at writing the record to the Record
 Accumulator — after that, the background Sender Thread takes over.
 ```
 
-### Sender Thread responsibilities [29:10]
+### Sender Thread responsibilities 
 
 ```
 1. Check Record Accumulator for batches that are ready
@@ -243,6 +252,8 @@ Accumulator — after that, the background Sender Thread takes over.
      Batch for TopicB-Partition1 -> Leader is Broker1
    → groups these by broker, wraps them into ONE ProduceRequest,
      and sends it in ONE network call.
+
+    SO it group batches by leader
 3. Send the request using NetworkClient
 4. Process responses (acks, retries)
 5. Handle retries if needed
@@ -263,7 +274,7 @@ max.in.flight.requests.per.connection = 5 (default)
   cluster at once.
 ```
 
-### ⚠️ Message reordering risk [41:11]
+### ⚠️ Message reordering risk
 
 ```
 IF max.in.flight.requests.per.connection > 1  AND  retries > 0
