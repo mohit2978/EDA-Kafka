@@ -12,20 +12,22 @@ This combination creates two problems.
 
 ---
 
-## Problem 1 — Duplicate Messages [00:24]
+## Problem 1 — Duplicate Messages 
 
 ![alt text](image-p1-1.png)
 
 ```
 Producer sends Event1 (seq 1) → Broker persists it at offset1
+
 Broker sends Ack → Ack lost in network (producer never receives it)
-Producer thinks the send failed → retries → sends Event1 (seq 1) again
+
+Producer thinks the send failed → retries as retry>1→ sends Event1 (seq 1) again
 Broker persists it AGAIN, now at offset2
 
 Result: same event persisted twice → Event1: offset1 AND Event1: offset2
 ```
 
-## Problem 2 — Message Reordering [01:38]
+## Problem 2 — Message Reordering 
 
 ![alt text](image-p1-2.png)
 
@@ -41,7 +43,7 @@ Broker log ends up as: Event2: offset1, Event1: offset2
 
 ---
 
-## Solution — Idempotency = true [04:03]
+## Solution — Idempotency = true 
 
 ```properties
 spring.kafka.producer.properties.enable.idempotence=true
@@ -52,9 +54,9 @@ Kafka version < 3.0  → default is FALSE
 Kafka version >= 3.0 → default is TRUE
 ```
 
-### How it works [04:36]
+### How it works
 
-**Step 1 — Producer application startup [04:52]:** producer asks the cluster for a unique Producer ID (PID).
+**Step 1 — Producer application startup :** producer go to any broker asks the cluster for a unique Producer ID (PID) and broker forward this request to controller.
 
 ![alt text](image-p2-3.png)
 
@@ -67,9 +69,13 @@ Kafka version >= 3.0 → default is TRUE
 5. Broker → Producer: PID = 1001
 ```
 
-**Step 2 — Producer sends requests [06:00]:** every batch built at the Record Accumulator now also carries the PID plus a base/last sequence number, tracked per Topic-Partition.
+This uniqueid is nowhere stored.
+
+**Step 2 — Producer sends requests to broker:** every batch built at the Record Accumulator now also carries the PID plus a base/last sequence number, tracked per Topic-Partition.
 
 ![alt text](image-p3-4.png)
+
+When idempotency is set as true PID ,BaseSequence and LastSequence is added.Sequenece number is added per batch.
 
 ```
 Record Accumulator maintains a Topic+Partition-wise sequence number.
@@ -88,7 +94,7 @@ Topic+Partition, the sequence numbering continues from where it left off
 (doesn't restart at 0).
 ```
 
-**Step 3 — First request received by Broker [09:30]**
+**Step 3 — First request received by Broker**
 
 ![alt text](image-p3-5.png)
 

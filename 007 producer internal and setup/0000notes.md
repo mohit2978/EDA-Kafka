@@ -293,9 +293,9 @@ This risk is resolved by setting **idempotency = true** (covered separately, in 
 
 ---
 
-## Video 2 — Kafka Producer Setup (Spring Boot) [00:00]
+## Video 2 — Kafka Producer Setup (Spring Boot) 
 
-### Step 1 — Dependency [00:17]
+### Step 1 — Dependency
 
 ```xml
 <!-- pom.xml -->
@@ -317,7 +317,7 @@ spring-kafka = Spring wrapper layer + Kafka client dependency
   that KafkaTemplate/KafkaAdmin use underneath.
 ```
 
-### Step 2 — Add Bootstrap Brokers [01:30]
+### Step 2 — Add Bootstrap Brokers
 
 ```properties
 server.port=8081
@@ -334,26 +334,25 @@ spring.kafka.producer.properties.metadata.max.age.ms=300000
 Why bootstrap servers are needed:
   Producer initially doesn't know which broker is leader for which
   partition, and can't talk to the controller directly for topic creation.
-  It needs ONE starting communication point.
+  It needs ONE starting communication point.So it asks from list which we provide
 
   Topic creation request → that broker forwards it to the Active Controller.
   Metadata fetch → broker serves it if it has it, else fetches from the
                    controller and returns it.
 
-  Producer caches this metadata in-memory and refreshes it every 5 minutes
-  (default) or whenever there's an issue connecting to a partition's leader.
+  Producer caches this metadata in-memory and refreshes it every 5 minutes(default) or whenever there's an issue connecting to a partition's leader.
+
+  Bootstrap server is needed only first time by producer.
 ```
 
-### Step 3 — Topic Creation [05:12]
+### Step 3 — Topic Creation 
 
 ```
-Same as in Cluster Setup: if partitions/RF aren't specified at topic
-creation, controller's default values are used. Segment size, cleanup
-policy etc. can similarly default from broker properties — OR be
+Same as in Cluster Setup: if partitions/RF aren't specified at topic creation, controller's default values are used. Segment size, cleanup policy etc. can similarly default from broker properties — OR be
 explicitly overridden per topic via TopicBuilder.
 ```
 
-#### Demo of Topic Creation [10:30]
+#### Demo of Topic Creation
 
 ```java
 @Configuration
@@ -365,33 +364,46 @@ public class KafkaProducerConfig {
             .partitions(3)
             .replicas(2)
             // if not provided here, picked from broker properties
-            .config(TopicConfig.RETENTION_MS_CONFIG, "604800000")
+            .config(TopicConfig.RETENTION_MS_CONFIG, "604800000")//7 days in ms
             .config(TopicConfig.CLEANUP_POLICY_CONFIG, "delete")
-            .config(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG, "2")
+            .config(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG, "2")//min ISR
             .config(TopicConfig.SEGMENT_BYTES_CONFIG, "1073741824")
             .build();
     }
 }
 ```
 
+This is same as we provide in broker1.properties in cluster setup
+
 ```
 On application startup, Spring checks if this topic already exists —
 if not, it sends the create-topic request.
 ```
 
-### Step 4 — Send Event [14:14]
+whenever we create a new cluster we create a cluster-id by 
+ execeuting `bin/kafka-storage.sh random-uuid`
 
-#### Use case 1 — Send WITH key (JsonSerializer) [14:14]
+then we bind controller and rest to this cluster id.
+
+
+
+### Step 4 — Send Event 
+
+#### Use case 1 — Send WITH key (JsonSerializer) 
 
 ```
 SERIALIZER:    Key = String, Value = JSON
-PARTITIONER:   send with key → related events go to the same partition
+
+PARTITIONER:   if send with key so related events having same key  go to the same partition 
+
 RECORD ACCUMULATOR:
    Max batch size = 32KB
    Linger = 20ms
    Overall buffer for batches = 32MB
-   When buffer is full → send() waits up to 60s, then throws exception
+   When buffer is full →then new send() waits up to 60s, then throws exception
+
 COMPRESSION:   snappy (or gzip, lz4, zstd, ...)
+
 SENDER THREAD: in-flight requests per connection = 5, retries = 3 on
                transient failures
 ```
@@ -423,7 +435,7 @@ public class OrderProducerService {
 
     public void sendWithKey(Order order) {
         String key = order.getOrderId();
-
+//send has 3 param topic name ,key and value
         CompletableFuture<SendResult<String, Order>> future =
             kafkaTemplate.send("order-events", key, order);
 
@@ -494,11 +506,12 @@ spring.kafka.producer.retries=3
 spring.kafka.producer.properties.max.in.flight.requests.per.connection=5
 ```
 
-#### Use case 2 — Send WITHOUT key (Custom Serializer, Sticky Partitioning) [28:02]
+#### Use case 2 — Send WITHOUT key (Custom Serializer, Sticky Partitioning)
 
 ```
 SERIALIZER:   Key = String, Value = Custom Serializer
-PARTITIONER:  send without key → Sticky Partitioning
+PARTITIONER:  send without key so Sticky Partitioning will happen
+
 Rest same as use case 1.
 ```
 
@@ -518,6 +531,7 @@ public class OrderController {
     }
 }
 ```
+controller same
 
 ```java
 // OrderProducerService.java
@@ -545,6 +559,7 @@ public class OrderProducerService {
     }
 }
 ```
+this below  is the custom serializer 
 
 ```java
 // OrderSummarySerializer.java — custom serializer
@@ -580,7 +595,7 @@ spring.kafka.producer.value-serializer=com.eda.producer.serializer.OrderSummaryS
 # everything else (bootstrap-servers, acks, batching, compression, retries...) same as use case 1
 ```
 
-### Multiple producers needing different serializers? [36:52]
+### Multiple producers needing different serializers?we have multiple producers and multiple producers needing multiple serializers..
 
 ```
 Problem: some producers need JsonSerializer, some need a custom
@@ -601,7 +616,7 @@ public KafkaTemplate<String, Order> customSerializerKafkaTemplate(KafkaPropertie
 
     // Override ONLY the value serializer — everything else stays the same
     props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, OrderSummarySerializer.class);
-
+    //ProducerConfig is ENUM having so many values
     DefaultKafkaProducerFactory<String, Order> factory =
         new DefaultKafkaProducerFactory<>(props);
 
@@ -616,6 +631,7 @@ public class OrderProducerService {
     @Autowired
     private KafkaTemplate<String, Order> kafkaTemplate;  // default (JsonSerializer)
 
+    //using custom bean 
     @Autowired
     @Qualifier("customSerializerKafkaTemplate")
     private KafkaTemplate<String, Order> customSerializerKafkaTemplate;
