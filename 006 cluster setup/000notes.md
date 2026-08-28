@@ -321,7 +321,9 @@ listener.security.protocol.map=CONTROLLER:PLAINTEXT,BROKER:PLAINTEXT
 # Directory in which this node's data will persist
 log.dirs=/tmp/broker2-logs
 
+# 7 days ,after 7 days entire segment will be deleted if 1st event in that segment is older than 7 days
 log.retention.hours=168
+# 1Gb segment size
 log.segment.bytes=1073741824
 offsets.topic.replication.factor=2
 ```
@@ -353,7 +355,7 @@ controller.listener.names → 2 uses:
      This is also why all controllers share the same listener name.
 ```
 
-### Log retention deletes whole segments — missing from notes [24:50]
+### Log retention deletes whole segments — missing from notes 
 
 Kafka stores topic data in log-segment files. Retention cleanup does not delete
 events one by one. When a segment becomes eligible for retention cleanup, Kafka
@@ -362,7 +364,7 @@ to 1 GB; after a segment rolls, Kafka writes subsequent events to a new segment.
 
 ---
 
-## Step 5 — Map all nodes (2 brokers + 2 controllers) to 1 Kafka Cluster [26:50]
+## Step 5 — Map all nodes (2 brokers + 2 controllers) to 1 Kafka Cluster 
 
 Generate a cluster ID using the script in `/bin`:
 
@@ -379,7 +381,19 @@ again. This prevents persisted metadata from an older local run from conflicting
 with the new cluster ID. This cleanup is only for a disposable local rerun; it is
 not required for a fresh setup, and real cluster data must not be deleted.
 
+for cleaning
+
+`rm -rf /tmp/controller1-logs`
+
+`rm -rf /tmp/controller2-logs`
+
+`rm -rf /tmp/broker1-logs`
+
+`rm -rf /tmp/broker2-logs`
+
 Format/map each node with this cluster ID:
+
+We attach all nodes to our clusterId
 
 ```bash
 # 1. Controller1
@@ -407,20 +421,11 @@ node.id=1
 version=1
 ```
 
-Every node's `meta.properties` shares the same `cluster.id` — that's what binds them into one cluster. Kafka also writes internal metadata under `__cluster_metadata-0/`, including a `quorum-state` file:
-
-![alt text](image-p10-6.png)
-
-```json
-{"clusterId":"","leaderId":1,"leaderEpoch":1,"votedId":-1,"appliedOffset":0,
- "currentVoters":[{"voterId":1},{"voterId":2}],"data_version":0}
-```
-
-→ tells us Controller with ID:1 is the leader.
+Every node's `meta.properties` shares the same `cluster.id` — that's what binds them into one cluster. 
 
 ---
 
-## Step 6 — Start all the node servers [31:15]
+## Step 6 — Start all the node servers
 
 ```
 Order matters: start Controllers FIRST, then Brokers.
@@ -447,6 +452,17 @@ Both brokers come up cleanly and transition to READY/STARTED:
 
 ![alt text](image-p10-8.png)
 
+Kafka also writes internal metadata under `__cluster_metadata-0/`, including a `quorum-state` file:
+
+![alt text](image-p10-6.png)
+
+```json
+{"clusterId":"","leaderId":1,"leaderEpoch":1,"votedId":-1,"appliedOffset":0,
+ "currentVoters":[{"voterId":1},{"voterId":2}],"data_version":0}
+```
+
+→ tells us Controller with ID:1 is the leader.
+
 Check the cluster/quorum status:
 
 ```bash
@@ -470,7 +486,9 @@ CurrentObservers:   [{id:4, ...}, {id:3, ...}]   ← these are the brokers
 
 ---
 
-## Step 7 — Create a test topic [36:40]
+Remember we cant talk to controller it's broker we talk to and that talk to controller
+
+## Step 7 — Create a test topic using scripts
 
 ```bash
 bin/kafka-topics.sh --bootstrap-server localhost:9092 \
@@ -506,7 +524,7 @@ Configs: min.insync.replicas=1, segment.bytes=1073741824
 
 ---
 
-## Step 8 — Producer test [39:45]
+## Step 8 — Producer test 
 
 ```bash
 bin/kafka-console-producer.sh --bootstrap-server localhost:9092 \

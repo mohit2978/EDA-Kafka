@@ -115,8 +115,9 @@ Check in-memory map for: PID:1001, Topic-A, Partition:P0
     Yes → ACCEPT → store: {PID:1001, Topic:A, Partition:P0, LastSequence:2}
     No  → REJECT the request
 ```
+Here baseSequence is 0 so it is accepted and in this batch last sequnece number is 2
 
-**Step 4 — Second request received by Broker [12:30]**
+**Step 4 — Second request received by Broker**
 
 ![alt text](image-p4-7.png)
 
@@ -160,7 +161,7 @@ The video then verifies the same mechanism on a running Kafka cluster:
 
 ---
 
-## The loophole — Controller doesn't remember PID-to-Producer mapping [22:23]
+## The loophole — Controller doesn't remember PID-to-Producer mapping
 
 ```
 Look again at Step 1: the Controller does NOT store PID information in
@@ -198,9 +199,9 @@ aren't stable across producer restarts.
 
 ---
 
-## Recommended settings when using Idempotency [29:07]
+## Recommended settings when using Idempotency 
 
-### 1. `spring.kafka.producer.acks=all` [29:15]
+### 1. `spring.kafka.producer.acks=all` 
 
 ```
 Why? Say acks=1: leader persists the event at seq no 1 but crashes BEFORE
@@ -215,8 +216,9 @@ That's why acks=all is recommended — it ensures the event is
 replicated to all ISR members before being acknowledged, so a leader
 crash can never cause this gap.
 ```
+It makes sure leader and follower has same info or not at all
 
-### 2. `spring.kafka.producer.retries=MAX_INT` [30:51]
+### 2. `spring.kafka.producer.retries=MAX_INT` 
 
 ```
 With idempotency enabled, retries are SAFE (broker de-dupes based on
@@ -224,7 +226,7 @@ PID + sequence number) — so the earlier restriction on retry count is
 lifted. Retry as many times as needed.
 ```
 
-### 3. `spring.kafka.producer.properties.max.in.flight.requests.per.connection <= 5` [31:18]
+### 3. `spring.kafka.producer.properties.max.in.flight.requests.per.connection <= 5`
 
 ```
 Kafka can only guarantee idempotency up to 5 in-flight sequence numbers
@@ -235,6 +237,12 @@ numbers for each (topic, partition, PID) combination — so this value
 must be kept <= 5 for idempotency guarantees to hold.
 ```
 
-## Closing notes — missing from notes [33:01]
+topicA.P0 -->[5 enteries only]
+
+topicA.P1 -->[5 enteries only]
+
+5 inflight request maximum we get ordering ,if 6 then there will be error
+
+## Closing notes — missing from notes 
 
 Idempotency prevents duplicates and reordering while the producer keeps the same PID. The recommended combination is `acks=all`, maximum retries, and no more than 5 in-flight requests per connection. A producer restart can receive a new PID, so the later Transactions section addresses that remaining restart loophole.

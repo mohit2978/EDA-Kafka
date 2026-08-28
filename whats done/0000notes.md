@@ -5,6 +5,3 @@ This is video numbers
 18,19 outbox done
 
  ,9,10  idempotency  done
-
-
- idemptotency 10 min
