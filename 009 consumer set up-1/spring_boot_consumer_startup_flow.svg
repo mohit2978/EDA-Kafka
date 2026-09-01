@@ -1,0 +1,127 @@
+<svg width="100%" viewBox="0 0 1100 850" role="img" xmlns="http://www.w3.org/2000/svg" style="background: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <linearGradient id="sbHeaderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <linearGradient id="nodeGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="nodeGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1b4b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+
+    <marker id="sb-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="sb-arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+
+    <filter id="sbShadow" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1100" height="850" fill="#0b1120"/>
+
+  <!-- Header -->
+  <g transform="translate(40, 25)" filter="url(#sbShadow)">
+    <rect width="1020" height="75" rx="12" fill="url(#sbHeaderGrad)"/>
+    <text x="510" y="34" text-anchor="middle" fill="#ffffff" font-size="20" font-weight="700">Spring Boot Consumer Startup &amp; Wiring Lifecycle Flow</text>
+    <text x="510" y="58" text-anchor="middle" fill="#d1fae5" font-size="13">Behind the scenes: AutoConfiguration, Bean instantiation, @KafkaListener scanning &amp; Poll loop</text>
+  </g>
+
+  <!-- Node 0: Application Starts -->
+  <g transform="translate(50, 125)" filter="url(#sbShadow)">
+    <rect width="320" height="50" rx="8" fill="#1e293b" stroke="#38bdf8" stroke-width="1.5"/>
+    <text x="160" y="30" text-anchor="middle" fill="#f8fafc" font-size="14" font-weight="700">Spring Boot Application Starts</text>
+  </g>
+
+  <!-- Tree trunk line down from Root -->
+  <path d="M 210 175 L 210 215" stroke="#38bdf8" stroke-width="2"/>
+
+  <!-- Branch 1: KafkaAutoConfiguration -->
+  <path d="M 210 215 L 250 215" stroke="#34d399" stroke-width="2" marker-end="url(#sb-arrow)"/>
+  <g transform="translate(260, 190)" filter="url(#sbShadow)">
+    <rect width="780" height="50" rx="8" fill="url(#nodeGrad1)" stroke="#10b981" stroke-width="1.5"/>
+    <rect x="12" y="12" width="180" height="26" rx="4" fill="#065f46"/>
+    <text x="102" y="29" text-anchor="middle" fill="#a7f3d0" font-size="12" font-weight="700">KafkaAutoConfiguration</text>
+    <text x="210" y="30" fill="#cbd5e1" font-size="12">Triggered automatically by <tspan fill="#34d399" font-weight="600">spring-kafka</tspan> present on classpath</text>
+  </g>
+
+  <!-- Sub-branch 1.1: ConsumerFactory -->
+  <path d="M 290 240 L 290 280 L 330 280" stroke="#34d399" stroke-width="1.5" marker-end="url(#sb-arrow)"/>
+  <g transform="translate(340, 255)" filter="url(#sbShadow)">
+    <rect width="700" height="50" rx="8" fill="url(#nodeGrad1)" stroke="#475569" stroke-width="1"/>
+    <text x="20" y="24" fill="#fde047" font-size="13" font-weight="700">Creates Bean: ConsumerFactory</text>
+    <text x="20" y="40" fill="#94a3b8" font-size="11">Reads <tspan fill="#cbd5e1" font-family="monospace">spring.kafka.consumer.*</tspan> properties from application.properties, stores configuration as Map</text>
+  </g>
+
+  <!-- Sub-branch 1.2: ConcurrentKafkaListenerContainerFactory -->
+  <path d="M 290 240 L 290 345 L 330 345" stroke="#34d399" stroke-width="1.5" marker-end="url(#sb-arrow)"/>
+  <g transform="translate(340, 320)" filter="url(#sbShadow)">
+    <rect width="700" height="55" rx="8" fill="url(#nodeGrad1)" stroke="#475569" stroke-width="1"/>
+    <text x="20" y="24" fill="#fde047" font-size="13" font-weight="700">Creates Bean: ConcurrentKafkaListenerContainerFactory</text>
+    <text x="20" y="42" fill="#cbd5e1" font-size="11">Holds reference to <tspan fill="#6ee7b7">ConsumerFactory</tspan>. <tspan fill="#fb7185" font-weight="600">(Note: No actual KafkaConsumer object created as of now)</tspan></text>
+  </g>
+
+  <!-- Main trunk continues down to @EnableKafka -->
+  <path d="M 210 215 L 210 420 L 250 420" stroke="#60a5fa" stroke-width="2" marker-end="url(#sb-arrow-blue)"/>
+  
+  <!-- Branch 2: @EnableKafka -->
+  <g transform="translate(260, 395)" filter="url(#sbShadow)">
+    <rect width="780" height="50" rx="8" fill="url(#nodeGrad2)" stroke="#6366f1" stroke-width="1.5"/>
+    <rect x="12" y="12" width="130" height="26" rx="4" fill="#312e81"/>
+    <text x="77" y="29" text-anchor="middle" fill="#c7d2fe" font-size="12" font-weight="700">@EnableKafka</text>
+    <text x="160" y="30" fill="#cbd5e1" font-size="12">Automatically added by Spring Boot based on classpath. <tspan fill="#a5b4fc" font-weight="600">Enables Kafka listener processing.</tspan></text>
+  </g>
+
+  <!-- Sub-branch 2.1: PostProcessor Bean -->
+  <path d="M 290 445 L 290 485 L 330 485" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#sb-arrow-blue)"/>
+  <g transform="translate(340, 460)" filter="url(#sbShadow)">
+    <rect width="700" height="48" rx="8" fill="url(#nodeGrad1)" stroke="#475569" stroke-width="1"/>
+    <text x="20" y="22" fill="#38bdf8" font-size="13" font-weight="700">Creates Bean: KafkaListenerAnnotationBeanPostProcessor</text>
+    <text x="20" y="38" fill="#94a3b8" font-size="11">Special Spring BeanPostProcessor that inspects candidate Spring beans during container initialization</text>
+  </g>
+
+  <!-- Sub-branch 2.2: Scanning -->
+  <path d="M 370 508 L 370 545 L 410 545" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#sb-arrow-blue)"/>
+  <g transform="translate(420, 520)" filter="url(#sbShadow)">
+    <rect width="620" height="46" rx="8" fill="url(#nodeGrad1)" stroke="#475569" stroke-width="1"/>
+    <text x="20" y="28" fill="#f8fafc" font-size="13" font-weight="600">Scan for <tspan fill="#fde047" font-weight="700">@KafkaListener</tspan> annotated methods on beans</text>
+  </g>
+
+  <!-- Sub-branch 2.3: For each listener create Container -->
+  <path d="M 450 566 L 450 610 L 490 610" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#sb-arrow-blue)"/>
+  <g transform="translate(500, 580)" filter="url(#sbShadow)">
+    <rect width="540" height="60" rx="8" fill="url(#nodeGrad1)" stroke="#3b82f6" stroke-width="1.2"/>
+    <text x="20" y="24" fill="#93c5fd" font-size="12" font-weight="700">For each @KafkaListener found:</text>
+    <text x="20" y="44" fill="#cbd5e1" font-size="11">Asks <tspan fill="#6ee7b7">ConcurrentKafkaListenerContainerFactory</tspan> to create a <tspan fill="#fde047">KafkaListenerContainer</tspan> bean</text>
+  </g>
+
+  <!-- Sub-branch 2.4: Container gets KafkaConsumer -->
+  <path d="M 530 640 L 530 680 L 570 680" stroke="#34d399" stroke-width="1.5" marker-end="url(#sb-arrow)"/>
+  <g transform="translate(580, 655)" filter="url(#sbShadow)">
+    <rect width="460" height="55" rx="8" fill="#064e3b" stroke="#10b981" stroke-width="1.2"/>
+    <text x="20" y="22" fill="#a7f3d0" font-size="12" font-weight="700">KafkaListenerContainer gets KafkaConsumer</text>
+    <text x="20" y="40" fill="#f8fafc" font-size="11">Instantiates actual <tspan fill="#fef08a" font-family="monospace">org.apache.kafka.clients.consumer.KafkaConsumer</tspan></text>
+  </g>
+
+  <!-- Sub-branch 2.5: Poll Loop Starts -->
+  <path d="M 610 710 L 610 750 L 650 750" stroke="#fbbf24" stroke-width="2" marker-end="url(#sb-arrow)"/>
+  <g transform="translate(660, 725)" filter="url(#sbShadow)">
+    <rect width="380" height="52" rx="8" fill="#78350f" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="190" y="24" text-anchor="middle" fill="#fef08a" font-size="13" font-weight="700">⚡ Poll Loop Starts</text>
+    <text x="190" y="40" text-anchor="middle" fill="#fde68a" font-size="11">Runs continuous poll() on dedicated container background thread</text>
+  </g>
+
+  <!-- Footer Summary -->
+  <g transform="translate(50, 795)">
+    <rect width="990" height="36" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="495" y="22" text-anchor="middle" fill="#94a3b8" font-size="11.5"><tspan fill="#38bdf8" font-weight="600">Summary:</tspan> Configuration props → ConsumerFactory → ContainerFactory → @KafkaListener scanned → ListenerContainer created → Real KafkaConsumer spawned → Poll loop runs.</text>
+  </g>
+</svg>

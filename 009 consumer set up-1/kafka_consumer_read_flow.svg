@@ -1,0 +1,438 @@
+<svg width="100%" viewBox="0 0 1350 2050" role="img" xmlns="http://www.w3.org/2000/svg" style="background: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+    <linearGradient id="consumerCardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="brokerCardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#132e35" />
+      <stop offset="100%" stop-color="#0d1f24" />
+    </linearGradient>
+    <linearGradient id="controllerCardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2d1b4e" />
+      <stop offset="100%" stop-color="#1a102f" />
+    </linearGradient>
+    <linearGradient id="noteCardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#332200" />
+      <stop offset="100%" stop-color="#1f1500" />
+    </linearGradient>
+
+    <!-- Markers -->
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="#c084fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-rose" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="#fb7185" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-loop" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+
+    <!-- Drop Shadows -->
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Canvas Background -->
+  <rect width="1350" height="2050" fill="#0b1120"/>
+
+  <!-- ================= TOP HEADER BANNER ================= -->
+  <g transform="translate(40, 30)" filter="url(#shadow)">
+    <rect width="1270" height="85" rx="14" fill="url(#headerGrad)"/>
+    <text x="635" y="38" text-anchor="middle" fill="#ffffff" font-size="22" font-weight="700" letter-spacing="0.5">Kafka Complete Consumer Read Flow (Steps 1 – 13)</text>
+    <text x="635" y="66" text-anchor="middle" fill="#dbeafe" font-size="14" font-weight="400">Step-by-step coordination between Consumer, Broker, Active Controller, Group Coordinator, and Followers</text>
+  </g>
+
+  <!-- ================= COLUMN HEADERS ================= -->
+  <!-- Left: Consumer Client -->
+  <g transform="translate(50, 135)">
+    <rect width="450" height="42" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="225" y="26" text-anchor="middle" fill="#93c5fd" font-size="15" font-weight="700" letter-spacing="0.5">CONSUMER APPLICATION (Client)</text>
+  </g>
+
+  <!-- Right: Kafka Cluster / Brokers / Controller -->
+  <g transform="translate(540, 135)">
+    <rect width="760" height="42" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+    <text x="380" y="26" text-anchor="middle" fill="#6ee7b7" font-size="15" font-weight="700" letter-spacing="0.5">KAFKA CLUSTER (Brokers, Active Controller, Group Coordinator)</text>
+  </g>
+
+  <!-- Swimlane Divider Line -->
+  <line x1="520" y1="190" x2="520" y2="1980" stroke="#334155" stroke-dasharray="6 6" stroke-width="1.5"/>
+
+  <!-- ================= PHASE 1: DISCOVERY (STEPS 1 - 3) ================= -->
+
+  <!-- STEP 1: Consumer Starts -->
+  <g transform="translate(60, 200)" filter="url(#shadow)">
+    <rect width="430" height="74" rx="10" fill="url(#consumerCardGrad)" stroke="#3b82f6" stroke-width="1.2"/>
+    <rect x="14" y="14" width="70" height="22" rx="5" fill="#2563eb"/>
+    <text x="49" y="29" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700">Step 1</text>
+    <text x="96" y="30" fill="#f8fafc" font-size="14" font-weight="600">Consumer starts and wants to join Group</text>
+    <text x="20" y="58" fill="#94a3b8" font-size="13">Configuration: <tspan fill="#38bdf8" font-weight="600">group.id = "notification-service"</tspan></text>
+  </g>
+
+  <!-- Down arrow Step 1 -> Step 2 -->
+  <line x1="275" y1="274" x2="275" y2="300" stroke="#60a5fa" stroke-width="2" marker-end="url(#arrow-blue)"/>
+
+  <!-- STEP 2: Hash Calculation -->
+  <g transform="translate(60, 305)" filter="url(#shadow)">
+    <rect width="430" height="96" rx="10" fill="url(#consumerCardGrad)" stroke="#3b82f6" stroke-width="1.2"/>
+    <rect x="14" y="14" width="70" height="22" rx="5" fill="#2563eb"/>
+    <text x="49" y="29" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700">Step 2</text>
+    <text x="96" y="30" fill="#f8fafc" font-size="14" font-weight="600">Finds partition number of "_consumer_offsets"</text>
+    <rect x="20" y="44" width="390" height="26" rx="4" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+    <text x="215" y="61" text-anchor="middle" fill="#fde047" font-size="12" font-family="monospace" font-weight="600">hash("notification-service-group-id") % 50 = 23</text>
+    <text x="20" y="85" fill="#cbd5e1" font-size="12">Target: <tspan fill="#34d399" font-weight="600">Partition 23 of topic _consumer_offsets</tspan> (out of 50)</text>
+  </g>
+
+  <!-- Down arrow Step 2 -> Step 3 -->
+  <line x1="275" y1="401" x2="275" y2="425" stroke="#60a5fa" stroke-width="2" marker-end="url(#arrow-blue)"/>
+
+  <!-- STEP 3: Consumer Requests Metadata -->
+  <g transform="translate(60, 430)" filter="url(#shadow)">
+    <rect width="430" height="90" rx="10" fill="url(#consumerCardGrad)" stroke="#3b82f6" stroke-width="1.2"/>
+    <rect x="14" y="14" width="70" height="22" rx="5" fill="#2563eb"/>
+    <text x="49" y="29" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700">Step 3</text>
+    <text x="96" y="30" fill="#f8fafc" font-size="14" font-weight="600">Consumer requests cluster metadata</text>
+    <text x="20" y="58" fill="#94a3b8" font-size="12">(First time connect or background refresh)</text>
+    <text x="20" y="76" fill="#cbd5e1" font-size="12">Asks: <tspan fill="#60a5fa" font-weight="600">Who is the Leader for _consumer_offsets P23?</tspan></text>
+  </g>
+
+  <!-- Cluster Nodes for Step 3: Broker-1 & Active Controller -->
+  <g transform="translate(560, 420)" filter="url(#shadow)">
+    <!-- Broker-1 Box -->
+    <rect width="280" height="80" rx="10" fill="url(#brokerCardGrad)" stroke="#10b981" stroke-width="1.2"/>
+    <text x="140" y="28" text-anchor="middle" fill="#6ee7b7" font-size="14" font-weight="700">Broker-1 (Any Broker)</text>
+    <text x="140" y="52" text-anchor="middle" fill="#cbd5e1" font-size="12">Bootstrap / initial contact node</text>
+    <text x="140" y="68" text-anchor="middle" fill="#94a3b8" font-size="11">Queries metadata from Controller</text>
+  </g>
+
+  <g transform="translate(970, 420)" filter="url(#shadow)">
+    <!-- Active Controller Box -->
+    <rect width="280" height="80" rx="10" fill="url(#controllerCardGrad)" stroke="#a855f7" stroke-width="1.2"/>
+    <text x="140" y="28" text-anchor="middle" fill="#d8b4fe" font-size="14" font-weight="700">Active Controller</text>
+    <text x="140" y="52" text-anchor="middle" fill="#cbd5e1" font-size="12">Holds definitive cluster metadata</text>
+    <text x="140" y="68" text-anchor="middle" fill="#94a3b8" font-size="11">Leader-follower state &amp; partitions</text>
+  </g>
+
+  <!-- Arrows for Step 3 -->
+  <!-- 1. Consumer -> Broker 1 -->
+  <path d="M 490 455 L 552 455" stroke="#60a5fa" stroke-width="2" fill="none" marker-end="url(#arrow-blue)"/>
+  <text x="521" y="445" text-anchor="middle" fill="#93c5fd" font-size="10" font-weight="600">Give me metadata</text>
+
+  <!-- 2. Broker 1 -> Controller -->
+  <path d="M 840 445 L 962 445" stroke="#c084fc" stroke-width="2" fill="none" marker-end="url(#arrow-purple)"/>
+  <text x="901" y="437" text-anchor="middle" fill="#e9d5ff" font-size="10" font-weight="600">Give me metadata</text>
+
+  <!-- 3. Controller -> Broker 1 -->
+  <path d="M 970 475 L 848 475" stroke="#c084fc" stroke-width="2" fill="none" stroke-dasharray="4 3" marker-end="url(#arrow-purple)"/>
+  <text x="909" y="492" text-anchor="middle" fill="#e9d5ff" font-size="10" font-weight="600">Metadata response</text>
+
+  <!-- 4. Broker 1 -> Consumer & Payload Card -->
+  <path d="M 620 500 L 620 535 L 498 535" stroke="#60a5fa" stroke-width="2" fill="none" stroke-dasharray="4 3" marker-end="url(#arrow-blue)"/>
+  <text x="555" y="528" text-anchor="middle" fill="#93c5fd" font-size="10" font-weight="600">Metadata response</text>
+
+  <!-- Metadata Response Content Card -->
+  <g transform="translate(680, 515)" filter="url(#shadow)">
+    <rect width="360" height="95" rx="8" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.2"/>
+    <text x="16" y="22" fill="#a5b4fc" font-size="12" font-weight="700">Metadata Payload for topic: _consumer_offsets</text>
+    <text x="24" y="42" fill="#cbd5e1" font-size="11" font-family="monospace">partition 0  : leader = Broker 1</text>
+    <text x="24" y="58" fill="#cbd5e1" font-size="11" font-family="monospace">partition 2  : leader = Broker 2</text>
+    <rect x="20" y="66" width="320" height="20" rx="4" fill="#312e81"/>
+    <text x="24" y="80" fill="#38bdf8" font-size="11" font-family="monospace" font-weight="700">partition 23 : leader = Broker 3 (Group Coordinator!)</text>
+  </g>
+
+  <!-- ================= PHASE 2: JOIN GROUP & REBALANCE (STEPS 4 - 5) ================= -->
+
+  <!-- Down arrow Step 3 -> Step 4 -->
+  <line x1="275" y1="520" x2="275" y2="640" stroke="#60a5fa" stroke-width="2" marker-end="url(#arrow-blue)"/>
+
+  <!-- STEP 4: Consumer Invokes Group Coordinator -->
+  <g transform="translate(60, 645)" filter="url(#shadow)">
+    <rect width="430" height="90" rx="10" fill="url(#consumerCardGrad)" stroke="#3b82f6" stroke-width="1.2"/>
+    <rect x="14" y="14" width="70" height="22" rx="5" fill="#2563eb"/>
+    <text x="49" y="29" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700">Step 4</text>
+    <text x="96" y="30" fill="#f8fafc" font-size="14" font-weight="600">Invokes Broker 3 (Group Coordinator)</text>
+    <text x="20" y="58" fill="#cbd5e1" font-size="12">Requests to join group: <tspan fill="#38bdf8" font-weight="600">"notification-service"</tspan></text>
+    <text x="20" y="76" fill="#94a3b8" font-size="12">Sends JoinGroupRequest with subscriptions</text>
+  </g>
+
+  <!-- Arrow Step 4 -> Broker 3 (Join Group) -->
+  <path d="M 490 690 L 552 690" stroke="#fbbf24" stroke-width="2.5" fill="none" marker-end="url(#arrow-amber)"/>
+  <rect x="495" y="668" width="55" height="18" rx="4" fill="#78350f"/>
+  <text x="522" y="681" text-anchor="middle" fill="#fef08a" font-size="10" font-weight="700">Join group</text>
+
+  <!-- STEP 5: Group Coordinator State & Follower Sync -->
+  <g transform="translate(560, 645)" filter="url(#shadow)">
+    <rect width="700" height="320" rx="12" fill="url(#brokerCardGrad)" stroke="#10b981" stroke-width="1.5"/>
+    
+    <!-- Step 5 Badge -->
+    <rect x="18" y="14" width="70" height="22" rx="5" fill="#059669"/>
+    <text x="53" y="29" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700">Step 5</text>
+    <text x="100" y="30" fill="#6ee7b7" font-size="15" font-weight="700">Broker 3 (Group Coordinator)</text>
+    <text x="680" y="30" text-anchor="end" fill="#a7f3d0" font-size="12">Topic: _consumer_offsets | P23 (Leader)</text>
+
+    <!-- Group Partition Assignment Sub-box -->
+    <g transform="translate(20, 48)">
+      <rect width="320" height="130" rx="8" fill="#064e3b" stroke="#059669" stroke-width="1"/>
+      <text x="14" y="22" fill="#a7f3d0" font-size="12" font-weight="700">Group: Notification-service</text>
+      <text x="14" y="40" fill="#cbd5e1" font-size="11">Topic: <tspan fill="#38bdf8" font-weight="600">order-events</tspan> (3 partitions)</text>
+      <line x1="14" y1="48" x2="306" y2="48" stroke="#047857" stroke-width="1"/>
+      <text x="14" y="66" fill="#94a3b8" font-size="11">• Consumer 1 : handles Partition-0</text>
+      <text x="14" y="84" fill="#94a3b8" font-size="11">• Consumer 2 : handles Partition-1</text>
+      <rect x="10" y="94" width="300" height="24" rx="4" fill="#065f46" stroke="#34d399" stroke-width="1"/>
+      <text x="18" y="110" fill="#fef08a" font-size="11" font-weight="700">★ Consumer 3 : handles Partition-2 (This Consumer)</text>
+    </g>
+
+    <!-- Follower Replication Sub-box -->
+    <g transform="translate(360, 48)">
+      <rect width="320" height="130" rx="8" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+      <text x="14" y="22" fill="#cbd5e1" font-size="12" font-weight="700">Followers Replication (Topic: _consumer_offsets)</text>
+      <text x="14" y="42" fill="#38bdf8" font-size="11">Broker 1 : Partition 23 (follower)</text>
+      <text x="14" y="60" fill="#38bdf8" font-size="11">Broker 2 : Partition 23 (follower)</text>
+      <line x1="14" y1="68" x2="306" y2="68" stroke="#334155" stroke-width="1"/>
+      <text x="14" y="84" fill="#94a3b8" font-size="10.5">Followers continuously poll Leader (Broker 3).</text>
+      <text x="14" y="100" fill="#94a3b8" font-size="10.5">ACK sent once followers update their partition logs.</text>
+      <text x="14" y="116" fill="#34d399" font-size="10.5" font-weight="600">Leader waits for all ISR followers to sync.</text>
+    </g>
+
+    <!-- Critical Architecture Note (Ack=All) -->
+    <g transform="translate(20, 190)">
+      <rect width="660" height="60" rx="8" fill="url(#noteCardGrad)" stroke="#f59e0b" stroke-width="1"/>
+      <text x="14" y="20" fill="#fbbf24" font-size="11" font-weight="700">CRITICAL KAFKA REPLICATION GUARANTEE:</text>
+      <text x="14" y="36" fill="#fef3c7" font-size="11">Broker 3 waits for all followers to update events in topic "_consumer_offsets" partition 23.</text>
+      <text x="14" y="50" fill="#fde047" font-size="11" font-weight="600">There is no option to configure (ack=0 or 1 or all) — Internally Consumer offset commit acts like Ack=All!</text>
+    </g>
+
+    <!-- Coordinator Response Banner -->
+    <g transform="translate(20, 260)">
+      <rect width="660" height="46" rx="6" fill="#047857" stroke="#10b981" stroke-width="1"/>
+      <text x="330" y="20" text-anchor="middle" fill="#ffffff" font-size="11.5" font-weight="700">Once all followers get latest update, Group Coordinator sends response:</text>
+      <text x="330" y="36" text-anchor="middle" fill="#fef08a" font-size="12" font-weight="700">"Partition-2 assigned for topic 'order-events'"</text>
+    </g>
+  </g>
+
+  <!-- Response arrow Step 5 -> Consumer Step 6 -->
+  <path d="M 560 930 L 480 930 L 480 1000 L 490 1000" stroke="#34d399" stroke-width="2" fill="none" stroke-dasharray="4 3" marker-end="url(#arrow-green)"/>
+  <rect x="440" y="955" width="80" height="18" rx="4" fill="#065f46"/>
+  <text x="480" y="968" text-anchor="middle" fill="#a7f3d0" font-size="9.5" font-weight="700">Assignment ACK</text>
+
+  <!-- ================= PHASE 3: FETCH COMMITTED OFFSET (STEPS 6 - 7) ================= -->
+
+  <!-- STEP 6: Fetch Last Committed Offset -->
+  <g transform="translate(60, 990)" filter="url(#shadow)">
+    <rect width="430" height="85" rx="10" fill="url(#consumerCardGrad)" stroke="#3b82f6" stroke-width="1.2"/>
+    <rect x="14" y="14" width="70" height="22" rx="5" fill="#2563eb"/>
+    <text x="49" y="29" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700">Step 6</text>
+    <text x="96" y="30" fill="#f8fafc" font-size="14" font-weight="600">Consumer fetches last committed offset</text>
+    <text x="20" y="58" fill="#cbd5e1" font-size="12">Topic: <tspan fill="#38bdf8" font-weight="600">"order-events"</tspan> | Partition: <tspan fill="#38bdf8" font-weight="600">Partition-2</tspan></text>
+    <text x="20" y="74" fill="#94a3b8" font-size="11">Where did the previous consumer leave off?</text>
+  </g>
+
+  <!-- Arrow Step 6 -> Step 7 (Get Metadata/Offset) -->
+  <path d="M 490 1032 L 552 1032" stroke="#60a5fa" stroke-width="2" fill="none" marker-end="url(#arrow-blue)"/>
+  <text x="521" y="1022" text-anchor="middle" fill="#93c5fd" font-size="10" font-weight="600">Get metadata: offset?</text>
+
+  <!-- STEP 7: Broker 3 Looks at _consumer_offsets -->
+  <g transform="translate(560, 990)" filter="url(#shadow)">
+    <rect width="700" height="175" rx="12" fill="url(#brokerCardGrad)" stroke="#10b981" stroke-width="1.2"/>
+    
+    <rect x="18" y="14" width="70" height="22" rx="5" fill="#059669"/>
+    <text x="53" y="29" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700">Step 7</text>
+    <text x="100" y="30" fill="#6ee7b7" font-size="15" font-weight="700">Broker 3 (Group Coordinator) looks at "_consumer_offsets"</text>
+
+    <!-- Key / Value Display -->
+    <g transform="translate(20, 48)">
+      <rect width="660" height="52" rx="6" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+      <text x="14" y="22" fill="#94a3b8" font-size="11">Key format: <tspan fill="#cbd5e1" font-family="monospace">group.id_topic_Partition</tspan></text>
+      <text x="14" y="40" fill="#fde047" font-size="12" font-family="monospace" font-weight="700">key: "notificationGroupId_order-events_Partition-2"  →  Value: offset = 100</text>
+    </g>
+
+    <!-- Storage Distinction Note -->
+    <g transform="translate(20, 108)">
+      <rect width="660" height="52" rx="6" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+      <text x="14" y="20" fill="#a5b4fc" font-size="11" font-weight="700">NOTE ON CONSUMER OFFSETS STORAGE:</text>
+      <text x="14" y="36" fill="#c7d2fe" font-size="11">Consumer offset details are NOT Cluster metadata. They are stored like normal topic data in _consumer_offsets.</text>
+      <text x="14" y="48" fill="#e0e7ff" font-size="10.5">Offset data is NOT stored in Controller nodes (avoids overloading Controller with continuous commits).</text>
+    </g>
+  </g>
+
+  <!-- Arrow Step 7 -> Consumer Step 8 (Return 100) -->
+  <path d="M 560 1140 L 480 1140 L 480 1205 L 490 1205" stroke="#34d399" stroke-width="2" fill="none" stroke-dasharray="4 3" marker-end="url(#arrow-green)"/>
+  <rect x="440" y="1165" width="80" height="18" rx="4" fill="#065f46"/>
+  <text x="480" y="1178" text-anchor="middle" fill="#a7f3d0" font-size="9.5" font-weight="700">Return 100</text>
+
+  <!-- ================= PHASE 4: FETCH LOG EVENTS (STEPS 8 - 9) ================= -->
+
+  <!-- STEP 8: Check Metadata & Invoke Leader Broker -->
+  <g transform="translate(60, 1195)" filter="url(#shadow)" id="step8-box">
+    <rect width="430" height="90" rx="10" fill="url(#consumerCardGrad)" stroke="#3b82f6" stroke-width="1.5"/>
+    <rect x="14" y="14" width="70" height="22" rx="5" fill="#2563eb"/>
+    <text x="49" y="29" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700">Step 8</text>
+    <text x="96" y="30" fill="#f8fafc" font-size="14" font-weight="600">Invokes Leader Broker of Topic Partition</text>
+    <text x="20" y="58" fill="#cbd5e1" font-size="12">Target: <tspan fill="#34d399" font-weight="600">Broker 2</tspan> (Leader of "order-events" Partition-2)</text>
+    <text x="20" y="76" fill="#94a3b8" font-size="11">Knows last processed offset was 100 → requests next offset 101</text>
+  </g>
+
+  <!-- Arrow Step 8 -> Broker 2 (Fetch Request) -->
+  <path d="M 490 1240 L 552 1240" stroke="#60a5fa" stroke-width="2.5" fill="none" marker-end="url(#arrow-blue)"/>
+  <g transform="translate(495, 1210)">
+    <rect width="60" height="26" rx="4" fill="#1e3a8a"/>
+    <text x="30" y="12" text-anchor="middle" fill="#bfdbfe" font-size="9" font-weight="700">Fetch 101+</text>
+    <text x="30" y="22" text-anchor="middle" fill="#93c5fd" font-size="8">max 200B</text>
+  </g>
+
+  <!-- STEP 9: Broker 2 (Leader of order-events P2) -->
+  <g transform="translate(560, 1195)" filter="url(#shadow)">
+    <rect width="700" height="120" rx="12" fill="url(#brokerCardGrad)" stroke="#10b981" stroke-width="1.2"/>
+    
+    <rect x="18" y="14" width="70" height="22" rx="5" fill="#059669"/>
+    <text x="53" y="29" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700">Step 9</text>
+    <text x="100" y="30" fill="#6ee7b7" font-size="15" font-weight="700">Broker 2 (Leader of Topic "order-events", Partition-2)</text>
+
+    <g transform="translate(20, 48)">
+      <rect width="660" height="58" rx="6" fill="#064e3b" stroke="#059669" stroke-width="1"/>
+      <text x="14" y="22" fill="#a7f3d0" font-size="12" font-weight="700">Log Segment Lookup &amp; Event Batch Assembly:</text>
+      <text x="14" y="42" fill="#fef3c7" font-size="11.5">Reads partition log starting from offset 101 up to max.poll.records / 200 bytes limit.</text>
+      <text x="14" y="54" fill="#6ee7b7" font-size="10.5" font-weight="600">Events ready to transfer: <tspan fill="#fde047">Offsets 101 to 501</tspan></text>
+    </g>
+  </g>
+
+  <!-- Arrow Step 9 -> Consumer Step 10 (Return 101 - 501 events) -->
+  <path d="M 560 1285 L 480 1285 L 480 1350 L 490 1350" stroke="#34d399" stroke-width="2.5" fill="none" marker-end="url(#arrow-green)"/>
+  <g transform="translate(435, 1300)">
+    <rect width="90" height="24" rx="4" fill="#065f46"/>
+    <text x="45" y="12" text-anchor="middle" fill="#a7f3d0" font-size="9" font-weight="700">Return events</text>
+    <text x="45" y="21" text-anchor="middle" fill="#fef08a" font-size="8.5" font-weight="600">Offsets 101-501</text>
+  </g>
+
+  <!-- ================= PHASE 5: PROCESS, COMMIT & LOOP (STEPS 10 - 13) ================= -->
+
+  <!-- STEP 10: Consumer Process Events -->
+  <g transform="translate(60, 1345)" filter="url(#shadow)">
+    <rect width="430" height="80" rx="10" fill="url(#consumerCardGrad)" stroke="#3b82f6" stroke-width="1.2"/>
+    <rect x="14" y="14" width="75" height="22" rx="5" fill="#2563eb"/>
+    <text x="51" y="29" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700">Step 10</text>
+    <text x="100" y="30" fill="#f8fafc" font-size="14" font-weight="600">Consumer processes events batch</text>
+    <text x="20" y="56" fill="#cbd5e1" font-size="12">Iterates through <tspan fill="#fde047" font-family="monospace">ConsumerRecords</tspan> (Offsets 101 – 501)</text>
+    <text x="20" y="72" fill="#94a3b8" font-size="11">Executes business logic: <tspan fill="#60a5fa">@KafkaListener / OrderEventListener</tspan></text>
+  </g>
+
+  <!-- Down arrow Step 10 -> Step 11 -->
+  <line x1="275" y1="1425" x2="275" y2="1455" stroke="#60a5fa" stroke-width="2" marker-end="url(#arrow-blue)"/>
+
+  <!-- STEP 11: Consumer Commits Offset -->
+  <g transform="translate(60, 1460)" filter="url(#shadow)">
+    <rect width="430" height="95" rx="10" fill="url(#consumerCardGrad)" stroke="#3b82f6" stroke-width="1.2"/>
+    <rect x="14" y="14" width="75" height="22" rx="5" fill="#2563eb"/>
+    <text x="51" y="29" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700">Step 11</text>
+    <text x="100" y="30" fill="#f8fafc" font-size="14" font-weight="600">Consumer commits processed offset</text>
+    <text x="20" y="58" fill="#cbd5e1" font-size="12">Mode: <tspan fill="#f59e0b" font-weight="600">Manual / Batch-wise commit</tspan> (or auto-commit)</text>
+    <text x="20" y="78" fill="#38bdf8" font-size="12" font-weight="600">Sends commit request: offset processed till = 501</text>
+  </g>
+
+  <!-- Arrow Step 11 -> Step 12 (Commit) -->
+  <path d="M 490 1505 L 552 1505" stroke="#fbbf24" stroke-width="2.5" fill="none" marker-end="url(#arrow-amber)"/>
+  <rect x="495" y="1485" width="55" height="18" rx="4" fill="#78350f"/>
+  <text x="522" y="1498" text-anchor="middle" fill="#fef08a" font-size="10" font-weight="700">Commit</text>
+
+  <!-- STEP 12: Group Coordinator Writes to _consumer_offsets -->
+  <g transform="translate(560, 1460)" filter="url(#shadow)">
+    <rect width="700" height="120" rx="12" fill="url(#brokerCardGrad)" stroke="#10b981" stroke-width="1.2"/>
+    
+    <rect x="18" y="14" width="75" height="22" rx="5" fill="#059669"/>
+    <text x="55" y="29" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700">Step 12</text>
+    <text x="105" y="30" fill="#6ee7b7" font-size="15" font-weight="700">Broker 3 (Group Coordinator) writes offset commit</text>
+
+    <g transform="translate(20, 48)">
+      <rect width="660" height="58" rx="6" fill="#064e3b" stroke="#059669" stroke-width="1"/>
+      <text x="14" y="22" fill="#a7f3d0" font-size="12" font-weight="700">Writes to: _consumer_offsets, Partition 23</text>
+      <text x="14" y="42" fill="#fef08a" font-size="12" font-family="monospace" font-weight="700">Record: (group="notification-service", topic="order-events", partition=2) → offset=501</text>
+      <text x="14" y="54" fill="#cbd5e1" font-size="10.5">Offset safely written and replicated across ISR followers.</text>
+    </g>
+  </g>
+
+  <!-- Arrow Step 12 -> Consumer (ACK) -->
+  <path d="M 560 1550 L 480 1550 L 480 1590 L 490 1590" stroke="#34d399" stroke-width="2" fill="none" stroke-dasharray="4 3" marker-end="url(#arrow-green)"/>
+  <rect x="450" y="1562" width="60" height="18" rx="4" fill="#065f46"/>
+  <text x="480" y="1575" text-anchor="middle" fill="#a7f3d0" font-size="10" font-weight="700">ACK</text>
+
+  <!-- Down arrow Step 11 -> Step 13 -->
+  <line x1="275" y1="1555" x2="275" y2="1605" stroke="#60a5fa" stroke-width="2" marker-end="url(#arrow-blue)"/>
+
+  <!-- STEP 13: Continuous Polling Loop -->
+  <g transform="translate(60, 1610)" filter="url(#shadow)">
+    <rect width="430" height="95" rx="10" fill="url(#consumerCardGrad)" stroke="#38bdf8" stroke-width="1.5"/>
+    <rect x="14" y="14" width="75" height="22" rx="5" fill="#0284c7"/>
+    <text x="51" y="29" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700">Step 13</text>
+    <text x="100" y="30" fill="#38bdf8" font-size="14" font-weight="700">Continuous Polling Loop</text>
+    <text x="20" y="58" fill="#f8fafc" font-size="12.5" font-weight="600">Loop continues: next poll() initiates next batch fetch</text>
+    <text x="20" y="78" fill="#fde047" font-size="12" font-weight="700">↺ Move back to Step 8 (Fetch from offset 502)</text>
+  </g>
+
+  <!-- POLLING LOOP BACK ARROW (From Step 13 back up to Step 8) -->
+  <path d="M 60 1660 L 25 1660 L 25 1240 L 52 1240" stroke="#38bdf8" stroke-width="3" fill="none" stroke-dasharray="8 4" marker-end="url(#arrow-loop)"/>
+  <g transform="translate(10, 1430) rotate(-90)">
+    <rect x="-60" y="-12" width="120" height="24" rx="6" fill="#0369a1" stroke="#38bdf8" stroke-width="1"/>
+    <text x="0" y="4" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">Continuous Loop ↺</text>
+  </g>
+
+  <!-- ================= BOTTOM SUMMARY BADGES ================= -->
+  <g transform="translate(60, 1735)" filter="url(#shadow)">
+    <rect width="1200" height="245" rx="14" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+    <text x="30" y="32" fill="#f8fafc" font-size="15" font-weight="700">Key Takeaways from Consumer Architecture:</text>
+    
+    <!-- 4 summary cards -->
+    <g transform="translate(30, 48)">
+      <rect width="265" height="175" rx="8" fill="#0f172a" stroke="#3b82f6" stroke-width="1"/>
+      <rect x="12" y="12" width="24" height="24" rx="4" fill="#2563eb"/>
+      <text x="24" y="29" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700">1</text>
+      <text x="44" y="29" fill="#93c5fd" font-size="12" font-weight="700">Group Coordinator Formula</text>
+      <text x="12" y="58" fill="#cbd5e1" font-size="11">Coordinator is the leader broker for partition:</text>
+      <text x="12" y="76" fill="#fde047" font-size="10.5" font-family="monospace">hash(group.id) % 50</text>
+      <text x="12" y="96" fill="#94a3b8" font-size="11">Every group deterministically maps to a single broker coordinator.</text>
+    </g>
+
+    <g transform="translate(325, 48)">
+      <rect width="265" height="175" rx="8" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+      <rect x="12" y="12" width="24" height="24" rx="4" fill="#059669"/>
+      <text x="24" y="29" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700">2</text>
+      <text x="44" y="29" fill="#6ee7b7" font-size="12" font-weight="700">Offset Storage Separation</text>
+      <text x="12" y="58" fill="#cbd5e1" font-size="11">Offsets are stored as normal topic messages in <tspan fill="#34d399">_consumer_offsets</tspan>.</text>
+      <text x="12" y="88" fill="#94a3b8" font-size="11">Offsets are <tspan fill="#fb7185" font-weight="600">NOT</tspan> stored in the Controller node, preventing metadata bottleneck.</text>
+    </g>
+
+    <g transform="translate(620, 48)">
+      <rect width="265" height="175" rx="8" fill="#0f172a" stroke="#f59e0b" stroke-width="1"/>
+      <rect x="12" y="12" width="24" height="24" rx="4" fill="#d97706"/>
+      <text x="24" y="29" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700">3</text>
+      <text x="44" y="29" fill="#fcd34d" font-size="12" font-weight="700">Commit Replication = Ack:All</text>
+      <text x="12" y="58" fill="#cbd5e1" font-size="11">When committing offsets to Coordinator, Broker 3 waits for <tspan fill="#fef08a" font-weight="600">all followers</tspan> to replicate.</text>
+      <text x="12" y="104" fill="#94a3b8" font-size="11">No ack=0/1 option exists; offset commits are strictly durable.</text>
+    </g>
+
+    <g transform="translate(915, 48)">
+      <rect width="255" height="175" rx="8" fill="#0f172a" stroke="#a855f7" stroke-width="1"/>
+      <rect x="12" y="12" width="24" height="24" rx="4" fill="#7e22ce"/>
+      <text x="24" y="29" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700">4</text>
+      <text x="44" y="29" fill="#d8b4fe" font-size="12" font-weight="700">Direct Partition Fetch</text>
+      <text x="12" y="58" fill="#cbd5e1" font-size="11">Consumer fetches event data directly from the <tspan fill="#c084fc">Partition Leader</tspan> (Broker 2), NOT the coordinator.</text>
+      <text x="12" y="104" fill="#94a3b8" font-size="11">Coordinator only manages group membership &amp; offsets.</text>
+    </g>
+  </g>
+
+</svg>

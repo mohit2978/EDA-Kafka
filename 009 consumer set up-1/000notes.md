@@ -1,6 +1,8 @@
-# Consumer Setup — Part 1 [00:00]
+# Consumer Setup — Part 1
 
-## Complete Consumer Read Flow (recap, step by step) [00:00]
+## Complete Consumer Read Flow (recap, step by step)
+
+![Kafka Consumer Complete Read Flow](kafka_consumer_read_flow.svg)
 
 ```
 Step1: Consumer starts, wants to join Group
@@ -8,6 +10,7 @@ Step1: Consumer starts, wants to join Group
 
 Step2: hash("notification-service-group-id") % 50 = 23
        → Partition 23 of internal topic "_consumer_offsets"
+       Total 50 partition we have.
 
 Step3: Consumer requests metadata (first time or refresh)
        Finds the partition number of topic "_consumer_offsets"
@@ -75,7 +78,7 @@ Step13: Continuous polling — move back to Step 8
 
 ---
 
-## Step 1 — Dependency [08:25]
+## Step 1 — Dependency
 
 ```xml
 <!-- pom.xml -->
@@ -263,6 +266,8 @@ The video verifies the configuration against the running Kafka cluster:
 ---
 
 ## Going 1 level deeper — what happens behind the scenes on startup [38:00]
+
+![Spring Boot Consumer Startup Flow](spring_boot_consumer_startup_flow.svg)
 
 ```
 1. Spring Boot Application starts
