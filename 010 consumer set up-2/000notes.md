@@ -1,4 +1,4 @@
-# Consumer Setup — Part 2 [00:00]
+# Consumer Setup 
 
 Recap of the Basic Consumer setup from Part 1:
 
@@ -32,7 +32,7 @@ bean → container gets a KafkaConsumer object from the ConsumerFactory →
 poll loop starts.
 ```
 
-## What the basic setup actually achieves [00:00]
+## What the basic setup actually achieves 
 
 ```
 Topic: order-events → partitions P0, P1, P2
@@ -48,6 +48,24 @@ while (true) {
     }
 }
 ```
+
+
+So far we've only seen 1 consumer reading 1 topic. Three more interesting scenarios:
+
+```
+1. 1 consumer wants to join MORE THAN 1 topic
+2. Multiple consumers in a group, each joining a DIFFERENT topic
+3. Multiple consumers in a group, joining the SAME topic
+```
+
+![alt text](image.png)
+
+Inside Poll ,for each broker ,this consumer has opened one connection on that fetch request is made.
+It do not send multiple request ,each broker has got one reuqest.
+
+
+When consumer get the response from the broker then it merges the response.and then iterate over the response
+
 
 ```
 Partition → Leader Broker
@@ -82,45 +100,19 @@ ConsumerRecords object:
     ConsumerRecord(offset=21, value=E)
 ```
 
-So far we've only seen 1 consumer reading 1 topic. Three more interesting scenarios:
-
-```
-1. 1 consumer wants to join MORE THAN 1 topic
-2. Multiple consumers in a group, each joining a DIFFERENT topic
-3. Multiple consumers in a group, joining the SAME topic
-```
 
 ---
 
-## Scenario 1 — 1 consumer subscribed to multiple topics [10:11]
+## Scenario 1 : 1 consumer subscribed to multiple topics 
 
 ```
-Topic: order-events (P0)  ─┐
+Topic: order-events (P0)   ─┐
                             ├─→ Consumer Group 1 → C1
 Topic: payment-events (P0) ─┘
 ```
 
-### Approach 1 — Manual JSON-to-object mapping [10:11]
+### Approach 1 : Manual JSON-to-object mapping 
 
-```java
-@Component
-public class OrderEventListener {
-
-    @Autowired
-    ObjectMapper objectMapper;
-
-    @KafkaListener(topics = {"order-events", "payment-events"})
-    public void consume(ConsumerRecord<String, String> record) {
-        if ("order-events".equals(record.topic())) {
-            Order order = objectMapper.readValue(record.value(), Order.class);
-            // business logic for order
-        } else if ("payment-events".equals(record.topic())) {
-            Payment payment = objectMapper.readValue(record.value(), Payment.class);
-            // business logic for payment
-        }
-    }
-}
-```
 
 ```properties
 server.port=8082
@@ -137,9 +129,37 @@ Here we accept the record AS-IS (raw String) and take deserialization
 into our own hands — that's why value-deserializer is StringDeserializer,
 not JsonDeserializer. We branch on record.topic() and manually map JSON
 to the right class ourselves.
+
+also here we will manaually serialize we do not need spring.kafka.consumer.properties.spring.json.value.default.type ,only needed when we use JSonSerializer
+
 ```
 
-### Manual-mapping demo — missing from notes [16:18]
+
+```java
+@Component
+public class OrderEventListener {
+
+    @Autowired
+    ObjectMapper objectMapper;
+
+    @KafkaListener(topics = {"order-events", "payment-events"})
+    public void consume(ConsumerRecord<String, String> record) {
+      //this record has every information so to get topic-name use record.topic()
+        if ("order-events".equals(record.topic())) {
+            Order order = objectMapper.readValue(record.value(), Order.class);
+            //record.value() gets the value of record and then we manually serialize here
+            // business logic for order
+        } else if ("payment-events".equals(record.topic())) {
+            Payment payment = objectMapper.readValue(record.value(), Payment.class);
+            // business logic for payment
+        }
+    }
+}
+```
+objectMapper comes from Jackson
+
+
+### Manual-mapping demo 
 
 The video runs the manual approach end to end:
 
@@ -148,9 +168,11 @@ The video runs the manual approach end to end:
 3. Check `record.topic()` and use `ObjectMapper` to convert the value to either `Order` or `Payment`.
 4. Publish events to both topics and verify that the corresponding branch and business logic execute.
 
-### Understanding the JSON deserialization flow (important — where people get confused) [20:26]
+### Understanding the JSON deserialization flow (important — where people get confused) 
 
-**Producer side (during JSON serialization) [20:26]:**
+**Producer side (during JSON serialization) :**
+
+![alt text](image-1.png)
 
 ```java
 @Service
@@ -164,6 +186,8 @@ public class OrderProducerService {
     }
 }
 ```
+`
+KafkaTemplate sends in key,value format. That we get in record in ConsumerRecord`
 
 ```properties
 #---------------SERIALIZER-------------
@@ -175,6 +199,7 @@ spring.kafka.producer.properties.spring.json.add.type.headers=true   # true by d
 ```
 When the producer sends the event, it ALSO adds a header:
   __TypeId__ = com.eda.producer.model.Order
+This tells type Class of event
 
 But it's NOT always guaranteed that the producer adds __TypeId__, even
 though add.type.headers is true (default)!
@@ -206,10 +231,13 @@ it adds __TypeId__. When the value type is a specific class, it's
 already known — so no header needed.
 ```
 
-**Consumer side (during JSON deserialization) — the decision flow [30:00]:**
+**Consumer side (during JSON deserialization) — the decision flow :**
 
+![alt text](image-2.png)
+
+![alt text](image-3.png)
 ```
-Per Kafka ConsumerRecord (bytes + headers):
+For each Kafka ConsumerRecord (bytes + headers):
 
   Is JsonDeserializer being used?
     No  → (not this flow)
@@ -228,6 +256,9 @@ Per Kafka ConsumerRecord (bytes + headers):
                   Is a type mapping present?
                     spring.kafka.consumer.properties.spring.json.type.mapping=
                       com.producer.Order:com.consumer.Order
+                    (Very imp config,we tell which object of producer to convert to which object of consumer )
+
+
 
                     Yes → use the "to" class (com.consumer.Order)
                           → Deserialize JSON -> Object → invoke listener
@@ -259,7 +290,7 @@ Per Kafka ConsumerRecord (bytes + headers):
                                           → @KafkaListener method invoked
 ```
 
-### Approach 2 — AUTO mapping (JSON to object conversion, no manual work) [38:05]
+### Approach 2 — AUTO mapping (JSON to object conversion, no manual work) 
 
 ```properties
 spring.kafka.consumer.group-id=order-consumer-group
@@ -268,12 +299,15 @@ spring.kafka.consumer.value-deserializer=org.springframework.kafka.support.seria
 spring.kafka.consumer.properties.spring.json.type.mapping=com.eda.producer.model.Order:com.eda.consumer.model.Order,com.eda.producer.model.Payment:com.eda.consumer.model.Payment
 spring.kafka.consumer.properties.spring.json.value.default.type=com.eda.consumer.model.Order
 ```
+Here we are providing mapping of producer class to consumer class,see above application.properties.
+
+Now at consumer side we just typecast record.value to whatevr it is deserialized to.
 
 ```java
 @Component
 public class OrderEventListener {
     @KafkaListener(topics = {"order-events", "payment-events"})
-    public void consume(ConsumerRecord<String, String> record) {
+    public void consume(ConsumerRecord<String, Object> record) {
         if ("order-events".equals(record.topic())) {
             Order order = (Order) record.value();
             // business logic for order
@@ -284,6 +318,9 @@ public class OrderEventListener {
     }
 }
 ```
+`ConsumerRecord<String, Object> record` as using JSonSerializer and Deserializer.
+
+When you provide mapping then no need of trusted package.
 
 ```
 No manual mapping needed — the type.mapping property tells
@@ -302,7 +339,7 @@ Example producer sending to both topics with a generic `KafkaTemplate<String, Ob
 
 ![alt text](image-p3-5.png)
 
-### Automatic-mapping demo — missing from notes [40:56]
+### Automatic-mapping demo — missing from notes 
 
 The video switches from manual `ObjectMapper` conversion to automatic deserialization:
 
@@ -313,14 +350,14 @@ The video switches from manual `ObjectMapper` conversion to automatic deserializ
 
 ---
 
-## Scenario 2 — Multiple consumers in a group, each joining a DIFFERENT topic [44:56]
+## Scenario 2 — Multiple consumers in a group, each joining a DIFFERENT topic [
 
 ```
 Topic: order-events (P0)   → Consumer Group 1 → C1
 Topic: payment-events (P0) → Consumer Group 1 → C2
 ```
 
-### Approach 1 — Two separate consumer applications [44:56]
+### Approach 1 — Two separate consumer applications 
 
 ```
 Simplest option: create 2 different Spring Boot consumer applications.
@@ -328,7 +365,7 @@ Whatever we've seen in the Basic Consumer setup just works, since each
 application creates its own single Consumer.
 ```
 
-### Approach 2 — Both consumers inside ONE application [45:25]
+### Approach 2 — Both consumers inside ONE application
 
 ```
 For each @KafkaListener, Spring creates 1 KafkaConsumer.
@@ -352,7 +389,13 @@ public class EventListener {
 
 There are 2 ways to configure the deserialization for this:
 
-**Way 1 — `__TypeId__` + type mapping [47:00]:**
+![alt text](image-4.png)
+
+![alt text](image-5.png)
+
+**Way 1 — `__TypeId__` + type mapping :**
+
+Producer sending `TypeId` and consumer is doing `mapping`
 
 ```properties
 spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
@@ -361,7 +404,11 @@ spring.kafka.consumer.properties.spring.json.type.mapping=com.eda.producer.model
 spring.kafka.consumer.properties.spring.json.value.default.type=com.eda.consumer.model.Order
 ```
 
-**Way 2 — `use.type.headers=false`, relying on default type [48:10]:**
+**Way 2 — `use.type.headers=false`, relying on default type **
+
+![alt text](image-7.png)
+
+see orange part
 
 ```properties
 spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
@@ -371,7 +418,9 @@ spring.kafka.consumer.properties.spring.json.value.default.type=com.eda.consumer
 ```
 
 ```
-⚠️ This (Way 2, as configured above) will NOT work when a payment event
+This will work for Order event as every event be deserializes to Order by default
+
+⚠️ But This (Way 2, as configured above) will NOT work when a payment event
 arrives, because it always deserializes using the single default type
 (Order):
 
@@ -380,7 +429,9 @@ Cannot convert from [com.eda.consumer.model.Order] to
 [com.eda.consumer.model.Payment] for GenericMessage[payload=Order{...}, ...]
 ```
 
-### Why this breaks — root cause [49:10]
+### Why this breaks — root cause 
+
+![alt text](image-6.png)
 
 ```
 This happens because there's only ONE ConsumerFactory object, built
@@ -393,7 +444,7 @@ The SAME ConsumerFactory object is used to create BOTH KafkaConsumers
 which breaks the Payment listener.
 ```
 
-### The fix — separate ConsumerFactory per event type [50:30]
+### The fix — separate ConsumerFactory per event type 
 
 ```java
 package com.eda.consumer.config;
@@ -446,6 +497,8 @@ public class ConsumerConfig {
 }
 ```
 
+Now we are telling which factory to use
+
 ```java
 @Component
 public class EventListener {
@@ -469,13 +522,15 @@ Order default type; Payment events use the Payment default type. No
 more mismatch exception.
 ```
 
-### Multiple-consumer and multiple-topic demo — missing from notes [55:09]
+### Multiple-consumer and multiple-topic demo — missing from notes 
 
 The video verifies both listeners in one Spring Boot application. Spring creates a separate Kafka consumer for each `@KafkaListener`; the order listener subscribes to `order-events`, while the payment listener subscribes to `payment-events`. Publishing to both topics shows that each event reaches the correct listener and uses its configured container/consumer factory.
 
 ---
 
-## Scenario 3 — Multiple consumers in a group, joining the SAME topic [57:39]
+## Scenario 3 — Multiple consumers in a group, joining the SAME topic 
+
+which partition you will get is not in your hand here. it will be assigned by kafka
 
 ```
 Topic: order-events (P0, P1) → Consumer Group 1 → C1, C2
@@ -499,6 +554,10 @@ spring.kafka.consumer.properties.spring.json.value.default.type=com.eda.consumer
 
 spring.kafka.listener.concurrency=3
 ```
+![alt text](image-8.png)
+
+
+![alt text](image-9.png)
 
 ```
 concurrency=3 gets set on the ConcurrentKafkaListenerContainerFactory.
@@ -506,8 +565,12 @@ For that @KafkaListener, Spring then creates N (here: 3)
 KafkaListenerContainer instances → and therefore N KafkaConsumer
 instances — all part of the SAME consumer group, sharing the
 partitions of order-events between them.
+
+
+which partition is alloted is defined by Group Coordinator.
+
 ```
 
-## Closing notes — missing from notes [63:15]
+## Closing notes — missing from notes 
 
 `spring.kafka.listener.concurrency` controls how many listener-container/Kafka-consumer instances Spring creates for the listener. Consumers in the same group divide the topic partitions among themselves; creating more consumers than available partitions leaves the extra consumers idle. The following lessons continue with polling, fetching, heartbeat, and other consumer configuration details.
