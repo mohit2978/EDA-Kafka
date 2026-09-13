@@ -1,4 +1,4 @@
-# Consumer Setup: Exception Handling
+
 
 Consumer processes events, and there are exactly **2 places** an exception can happen:
 
@@ -9,14 +9,19 @@ Consumer processes events, and there are exactly **2 places** an exception can h
 
 ### High level flow
 
+![alt text](image.png)
+
 ```
 poll()
   → deserialize() each record
   → For each record: invoke listener and process the record
   → Commit offset
 
-1st place exception can come:  during deserialization of key or value
-2nd place exception can come:  during processing the record (event)
+1st place exception can come:  during deserialization of key or value this is called poison pill problem
+
+one bad message will stuck your consumer forever
+
+2nd place exception can come:  during processing the record (event),null pointer exception can occur
 ```
 
 ---
@@ -24,6 +29,10 @@ poll()
 ## 1. Exception during Deserialization
 
 ### The problem — Infinite Loop
+
+Poison pill is bad message
+
+![alt text](image-1.png)
 
 ```
 Producer sends: Value = String
@@ -44,7 +53,7 @@ from offset 2 and gets stuck again, forever.
 
 Broker log dump confirming the buggy record at offset 2:
 
-![alt text](image-p1-1.png)
+![alt text](image-2.png)
 
 ```
 Offset 0 & 1: normal JSON payloads (producerId 1000)
@@ -60,8 +69,54 @@ order-consumer-group / order-events / Partition 0:
   CURRENT-OFFSET: 2   LOG-END-OFFSET: 3   LAG: 1
   → 1 offset (the buggy one) is never successfully processed/committed.
 ```
+![alt text](image-3.png)
+
+![alt text](image-5.png)
+
+---
+
+### What is a Dead Letter Topic (DLT)?
+
+A **Dead Letter Topic (DLT)** (derived from Dead Letter Queue / DLQ in messaging systems) is a secondary, dedicated Kafka topic used to store messages that cannot be processed successfully by a consumer.
+
+#### Why do we need DLT?
+1. **Unblocks the Consumer (Prevents Head-of-Line Blocking)**:
+   In Kafka, partition order is strict. If record at offset `N` fails deserialization or processing, the consumer cannot advance to offset `N+1`. Moving the bad record to a DLT allows the consumer to commit offset `N` and keep processing healthy messages.
+2. **Zero Data Loss**:
+   Instead of dropping or ignoring corrupt messages, storing them in DLT guarantees an audit trail.
+3. **Triage, Debugging & Replay**:
+   Engineers can inspect bad payloads, fix the underlying consumer logic or producer bug, and replay the messages back into the main topic.
+
+```
+Normal Flow:
+  [Main Topic] ───────> Consumer ───────> Process Record ───> Commit Offset
+
+Failure Flow with DLT:
+  [Main Topic] ───────> Consumer ───────> Deserialization / Processing Fails
+                                                │
+                                                ▼ (after retries / fatal error)
+                                     Publish to [DLT Topic]
+                                                │
+                                                ▼
+                                           Commit Offset
+                              (Consumer advances to next offset!)
+```
+
+```
+Headers enriched when publishing to DLT:
+  - kafka_dlt-original-topic
+  - kafka_dlt-original-partition
+  - kafka_dlt-original-offset
+  - kafka_dlt-exception-fqcn (exception class)
+  - kafka_dlt-exception-message
+  - kafka_dlt-exception-stacktrace
+```
+
+---
 
 ### Solution — Error Handling wrapper
+
+![alt text](image-4.png)
 
 ```
 Flow with the wrapper:
@@ -73,7 +128,7 @@ Deserialization logic → Deserialization Exception?
 Default config of ErrorHandler:
   0 retries — it's treated as a FATAL exception (no matter how many
   times you retry, it will fail the same way)
-  No failure event stored in DLT — just error logging
+  No failure event stored in DLT(Dead Letter topic) — just error logging and move to next
   → offset is still committed after logging
 ```
 
@@ -104,16 +159,16 @@ The actual exception chain seen in logs (RecordDeserializationException → Seri
 
 The DefaultErrorHandler exhausting its (zero) backoff and failing the listener invocation:
 
-![alt text](image-p2-4.png)
+![alt text](image-6.png)
 
 ```
-No lag afterwards — meaning the consumer DID commit the offset for the
+No lag afterwards — meaning the consumer did commit the offset for the
 record that failed deserialization. So the consumer isn't stuck anymore,
 BUT we permanently lost that event/record.
 
 In production we should NOT rely on DefaultErrorHandler for this.
 Instead, we should use our own Error Handler that stores the failed
-event in a DLT (Dead Letter Topic), so that after a fix, it can be
+event in a DLT (Dead Letter Topic) or in DB or alert, so that after a fix, it can be
 replayed (or some other action taken on it).
 ```
 
@@ -168,6 +223,8 @@ ExponentialBackOffWithMaxRetries(5):
 
 ### Recoverer — what happens after ALL retries are exhausted?
 
+![alt text](image-7.png)
+
 ```
 ConsumerRecordRecoverer            (Functional Interface)
   void accept(T t, U u);
@@ -181,9 +238,17 @@ ConsumerRecordRecoverer            (Functional Interface)
                  }
 ```
 
+![alt text](image-8.png)
+
+order-event-dlt is DLT topic so naming is very important as `DeadLetterPublishingRecoverer` looks the topic that ends with `<failed-evenr-name>-dlt` so here event name was `order-event`  which got failed appended by `-dlt`
+
+In recoverer bean we putting template as for producing an event we need `KafkaTemplate`
+
+then we put errorHandler in that we put recoverer.
+
 ### How DLT actually works internally
 
-![alt text](image-p3-5.png)
+![alt text](image-9.png)
 
 ```
 Consumer group status after the DLT fix: lag = 0, all partitions caught
