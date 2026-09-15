@@ -19,18 +19,26 @@ hash(group.id) % N  →  gives the partition number of internal topic
 ```
 Consumer invokes one of the bootstrap servers (any broker), asks for
 metadata, and caches it.
+```
+
+---
+
+
 
 Doubt: How frequently is this metadata refreshed?
 Answer: Multiple triggers cause a refresh:
-  - Periodic refresh (default 5 minutes):
-      spring.kafka.consumer.properties.metadata.max.age.ms=300000
+  - Periodic refresh (default 5 minutes): 
+     - spring.kafka.consumer.properties.metadata.max.age.ms=300000
   - On-demand refresh:
-      - Broker returns NOT_LEADER_FOR_PARTITION
+      - consumer reach to wrong broker ans ask for info 
+      - Then Broker returns NOT_LEADER_FOR_PARTITION so refresh happens
       - Information missing from cache
       - etc.
-```
+
 
 ## Step 4 — Find Group Coordinator, send JoinGroupRequest
+
+Now we need leader for partition 23 of consumer_offset  and that leader act as group coordinator
 
 ```
 Request contains:
@@ -66,7 +74,7 @@ Doubt: How are partitions divided among consumers in the group?
 4. Cooperative Sticky
 ```
 
-**Range Assignor (Default):**
+#### **Range Assignor (Default):**
 
 ```
 - Lays out Partitions in numeric order
@@ -79,9 +87,11 @@ Topic: order-events, Partitions: P0..P5
   C1: P0, P1
   C2: P2, P3
   C3: P4, P5
+
+  gives a range to a consumer
 ```
 
-**Round Robin:**
+#### **Round Robin:**
 
 ```
 - Just distributes partitions 1-by-1 to all consumers
@@ -91,7 +101,7 @@ Topic: order-events, Partitions: P0..P5
   C3: P2, P5
 ```
 
-**Sticky Assignor:**
+#### **Sticky Assignor:**
 
 ```
 - Starts with a Round Robin-like assignment
@@ -101,16 +111,10 @@ Topic: order-events, Partitions: P0..P5
 
 - Its real advantage shows up during REBALANCE (when a consumer is
   added or removed from the group).
-```
-
-**Cooperative Sticky:**
 
 ```
-Same starting point, but a fundamentally different rebalance PROTOCOL
-(see below).
-```
 
-### What happens during a Rebalance (say C3 crashes)
+##### What happens during a Rebalance (say C3 crashes)
 
 Starting point: `C1: P0,P3` / `C2: P1,P4` / `C3: P2,P5`
 
@@ -128,7 +132,10 @@ Example result:
   C2: P1, P3, P5
 
 Problem: C1 previously had P0 and P3. After rebalance, P3 is removed
-and P2, P4 are added. So C1 has to do a full cleanup — clear cache for
+and P2, P4 are added. 
+
+
+So C1 has to do a full cleanup — clear cache for
 P3, and set up fresh state/offsets for P2 and P4. Lots of churn.
 ```
 
@@ -155,6 +162,16 @@ When rebalance happens, ALL consumers stop reading from their
 partitions until new assignments are finalized.
 ```
 
+#### **Cooperative Sticky:**
+
+```
+Same starting point, but a fundamentally different rebalance PROTOCOL
+(see below).
+```
+
+
+
+
 **Cooperative (protocol used by Cooperative Sticky Assignor):**
 
 ```
@@ -169,6 +186,8 @@ Step2: Consumers CONTINUE reading from the partitions they keep — only
 ```
 
 ### Configuring the assignment strategy
+
+![alt text](image.png)
 
 ```properties
 spring.kafka.consumer.properties.partition.assignment.strategy=org.apache.kafka.clients.consumer.RangeAssignor
@@ -187,7 +206,8 @@ Consumer receives partition assignment (order-events, P0)
 Consumer asks Group Coordinator: "till where has the offset been read
 for P0 of topic order-events?"
 
-Doubt: What if there's no offset info present?
+Doubt: What if there's no offset info present?Where to start reading??
+
 
 Group Coordinator fetches offset info from the internal
 __consumer_offsets topic:
@@ -196,7 +216,7 @@ __consumer_offsets topic:
     YES → Fetch the saved offset and return it
     NO  → Look at config: spring.kafka.consumer.auto-offset-reset
 ```
-
+![alt text](image-1.png)
 ```
 auto-offset-reset options:
 
@@ -207,6 +227,19 @@ auto-offset-reset options:
   "none"              → Throws an Exception
 ```
 
+
+
+## Step 8 & 9 — Fetching from the Leader Broker
+
+```
+Checks the metadata, invokes the Leader Broker of Topic "order-events"
+Partition-0, offset: xyz → to fetch from the given offset (from the
+previous step).
+
+```
+
+
+![alt text](image-2.png)
 ## Fetch mechanics (recap from Part 2)
 
 ```java
@@ -244,15 +277,9 @@ Responses from B1 and B2 get merged into ONE ConsumerRecords object:
     ConsumerRecord(offset=21, value=E)
 ```
 
-## Step 8 & 9 — Fetching from the Leader Broker
 
+### Doubt: What if there's no event? How long will the consumer wait?
 ```
-Checks the metadata, invokes the Leader Broker of Topic "order-events"
-Partition-0, offset: xyz → to fetch from the given offset (from the
-previous step).
-
-Doubt: What if there's no event? How long will the consumer wait?
-
 Kafka Consumer is single-threaded — it processes records one at a time.
 During poll(timeout), we can set the timeout: the consumer waits AT
 MOST this long for brokers to respond, else it proceeds with whatever
@@ -260,9 +287,17 @@ it received (or an empty list).
 
   spring.kafka.listener.poll-timeout=5000   # 5 seconds
 ```
+### How much data is sent in one poll() or in 1 fetch request?
 
-### How much data is sent in one poll()?
+![alt text](image-3.png)
 
+![alt text](image-4.png)
+
+![alt text](image-5.png)
+
+![alt text](image-6.png)
+
+![alt text](image-7.png)
 ```
 We know a consumer can ask a broker to return data from multiple
 partitions/topics in ONE request. But how much data will the broker
@@ -302,6 +337,7 @@ So it's entirely possible fetch.max.bytes=52MB gets filled by, say,
 
 ### So what does `max.poll.records` actually do then?
 
+
 ```
 Consumer receives the data from the broker into an internal buffer.
 If that buffer contains MORE than 500 records, the consumer applies
@@ -323,10 +359,10 @@ spring.kafka.listener.idle-between-polls=0
 
 ### Detecting a stuck / dead consumer
 
-```
+
 Doubt: How do we know if a consumer is stuck while processing events,
 or has some other issue?
-
+```properties
 # Consumer sends a heartbeat pulse to the Group Coordinator every 3s
 spring.kafka.consumer.properties.heartbeat.interval.ms=3000
 
@@ -334,7 +370,10 @@ spring.kafka.consumer.properties.heartbeat.interval.ms=3000
 # consumer dead and starting a rebalance (generally higher than
 # heartbeat.interval.ms)
 spring.kafka.consumer.properties.session.timeout.ms=45000
+```
+Consumer properly sending heartbeat but no poll request ,last poll request got stuck
 
+```properties
 # Group Coordinator expects 1 poll() call at least every 5 min. If the
 # consumer takes, say, 6 minutes to process a batch (i.e. doesn't call
 # poll() again in time), the coordinator assumes it's stuck and
@@ -360,6 +399,7 @@ Doubt: What if an exception comes during processing the record?
 spring.kafka.consumer.enable-auto-commit=true
 spring.kafka.consumer.properties.auto.commit.interval.ms=5000
 ```
+after this time auto commit happens
 
 ### Manual-commit — `ack-mode` options
 
@@ -368,26 +408,33 @@ spring.kafka.consumer.enable-auto-commit=false
 spring.kafka.listener.ack-mode=<batch|record|time|count|manual|manual_immediate>
 ```
 
+![alt text](image-8.png)
+
 ```
 batch (default):
   poll() gets 500 records → process ALL 500 → commit ONCE.
   Con: if the LAST record in the batch fails, the ENTIRE batch is retried.
+```
 
+```
 record:
   Process record1 → commit. Process record2 → commit. (commit per record)
   Con: much more commit overhead (one commit request per record...
        or is it? see manual vs manual_immediate below).
-
+```
+```
 time:
   spring.kafka.listener.ack-mode=time
   spring.kafka.listener.ack-time=5000
   → Commits every 5 seconds.
-
+```
+```
 count:
   spring.kafka.listener.ack-mode=count
   spring.kafka.listener.ack-count=10
   → Commits after every 10 records.
-
+```
+```
 manual:
   @KafkaListener
   public void process(ConsumerRecord rec, Acknowledgment ack) {
@@ -397,7 +444,8 @@ manual:
   Even though we call ack.acknowledge() after each record, internally
   Spring just WAITS for the current poll() batch to finish, then sends
   ONE commit request to Kafka (batched under the hood).
-
+```
+```
 manual_immediate:
   @KafkaListener
   public void process(ConsumerRecord rec, Acknowledgment ack) {
@@ -407,3 +455,5 @@ manual_immediate:
   For EACH call to ack.acknowledge(), it immediately sends a separate
   commit request to Kafka (no batching/waiting).
 ```
+
+generally we use batch only in production
