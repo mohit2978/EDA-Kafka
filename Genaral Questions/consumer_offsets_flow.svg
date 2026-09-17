@@ -1,0 +1,82 @@
+<svg viewBox="0 0 800 450" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="flowBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="stepBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+    <linearGradient id="stepPurple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7c3aed" />
+      <stop offset="100%" stop-color="#8b5cf6" />
+    </linearGradient>
+    <linearGradient id="stepEmerald" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+    <linearGradient id="stepAmber" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d97706" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+    <filter id="cardShadow" x="-5%" y="-5%" width="110%" height="120%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+    <marker id="flowArrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M1,1 L7,4 L1,7 Z" fill="#64748b" />
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="100%" height="100%" fill="url(#flowBgGrad)" rx="12" />
+
+  <!-- Step 1: Consumer Commit -->
+  <g filter="url(#cardShadow)">
+    <rect x="230" y="20" width="340" height="50" rx="8" fill="url(#stepBlue)" stroke="#93c5fd" stroke-width="1"/>
+    <text x="400" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">1. Consumer Commits Offset</text>
+    <text x="400" y="58" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#dbeafe" text-anchor="middle">consumer.commitSync() or auto-commit</text>
+  </g>
+
+  <!-- Arrow 1 -> 2 -->
+  <line x1="400" y1="70" x2="400" y2="95" stroke="#64748b" stroke-width="2" marker-end="url(#flowArrow)"/>
+
+  <!-- Step 2: Finding Coordinator -->
+  <g filter="url(#cardShadow)">
+    <rect x="180" y="100" width="440" height="52" rx="8" fill="url(#stepPurple)" stroke="#c4b5fd" stroke-width="1"/>
+    <text x="400" y="122" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">2. Hash Routing to Partition &amp; Group Coordinator</text>
+    <text x="400" y="140" font-family="'Consolas', 'Courier New', monospace" font-size="12" font-weight="600" fill="#fbcfe8" text-anchor="middle">targetPartition = Math.abs(groupId.hashCode()) % 50</text>
+  </g>
+
+  <!-- Arrow 2 -> 3 -->
+  <line x1="400" y1="152" x2="400" y2="177" stroke="#64748b" stroke-width="2" marker-end="url(#flowArrow)"/>
+
+  <!-- Step 3: Write Record to __consumer_offsets -->
+  <g filter="url(#cardShadow)">
+    <rect x="70" y="182" width="660" height="105" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+    <rect x="70" y="182" width="660" height="28" rx="8" fill="url(#stepEmerald)"/>
+    <rect x="70" y="202" width="660" height="8" fill="url(#stepEmerald)"/>
+    <text x="400" y="201" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">3. Appends Record to __consumer_offsets Partition Leader</text>
+    
+    <text x="90" y="232" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#34d399">Key: <tspan font-family="'Consolas', monospace" font-weight="400" fill="#e2e8f0">[group: "order-grp", topic: "orders", partition: 1]</tspan></text>
+    <text x="90" y="254" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#38bdf8">Value: <tspan font-family="'Consolas', monospace" font-weight="400" fill="#e2e8f0">{offset: 1205, leaderEpoch: 2, commitTime: 1773..., expireTime: 1774...}</tspan></text>
+    <text x="90" y="274" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#94a3b8">Written directly to Kafka broker's local commit log for fast persistence</text>
+  </g>
+
+  <!-- Arrow 3 -> 4 -->
+  <line x1="400" y1="287" x2="400" y2="312" stroke="#64748b" stroke-width="2" marker-end="url(#flowArrow)"/>
+
+  <!-- Step 4: Log Compaction -->
+  <g filter="url(#cardShadow)">
+    <rect x="70" y="317" width="660" height="110" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+    <rect x="70" y="317" width="660" height="28" rx="8" fill="url(#stepAmber)"/>
+    <rect x="70" y="337" width="660" height="8" fill="url(#stepAmber)"/>
+    <text x="400" y="336" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">4. Background Log Compaction (cleanup.policy = compact)</text>
+    
+    <!-- Old offsets garbage collected -->
+    <text x="90" y="367" font-family="'Consolas', monospace" font-size="12" fill="#ef4444">❌ [order-grp, orders, 1] ➔ offset: 1198 <tspan font-family="-apple-system, sans-serif" font-size="11" fill="#94a3b8">(Obsolete — purged from disk)</tspan></text>
+    <text x="90" y="389" font-family="'Consolas', monospace" font-size="12" fill="#ef4444">❌ [order-grp, orders, 1] ➔ offset: 1200 <tspan font-family="-apple-system, sans-serif" font-size="11" fill="#94a3b8">(Obsolete — purged from disk)</tspan></text>
+    <!-- Latest offset kept -->
+    <text x="90" y="413" font-family="'Consolas', monospace" font-size="12" font-weight="700" fill="#22c55e">✅ [order-grp, orders, 1] ➔ offset: 1205 <tspan font-family="-apple-system, sans-serif" font-weight="600" fill="#4ade80">(Latest — safely retained)</tspan></text>
+  </g>
+</svg>

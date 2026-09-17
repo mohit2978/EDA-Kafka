@@ -1,0 +1,60 @@
+<svg viewBox="0 0 800 290" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="topicGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#7c3aed" />
+    </linearGradient>
+    <linearGradient id="offsetGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+    <linearGradient id="groupGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d97706" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+    <marker id="arrowIndigo" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M1,1 L7,4 L1,7 Z" fill="#818cf8" />
+    </marker>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="100%" height="100%" fill="#0f172a" rx="12" />
+
+  <!-- Root Topic Box -->
+  <g filter="url(#shadow)">
+    <rect x="230" y="20" width="340" height="60" rx="10" fill="url(#topicGrad)" stroke="#a5b4fc" stroke-width="1.5"/>
+    <text x="400" y="45" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="700" fill="#ffffff" text-anchor="middle">__consumer_offsets</text>
+    <text x="400" y="65" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="400" fill="#c7d2fe" text-anchor="middle">Internal Compacted Topic (Default: 50 Partitions)</text>
+  </g>
+
+  <!-- Connecting Lines -->
+  <path d="M 330 80 L 330 115 Q 330 125 320 125 L 210 125 Q 200 125 200 135 L 200 145" fill="none" stroke="#818cf8" stroke-width="2" marker-end="url(#arrowIndigo)" />
+  <path d="M 470 80 L 470 115 Q 470 125 480 125 L 590 125 Q 600 125 600 135 L 600 145" fill="none" stroke="#818cf8" stroke-width="2" marker-end="url(#arrowIndigo)" />
+
+  <!-- Left Card: Offset Commit -->
+  <g filter="url(#shadow)">
+    <rect x="40" y="145" width="325" height="122" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+    <rect x="40" y="145" width="325" height="32" rx="10" fill="url(#offsetGrad)"/>
+    <rect x="40" y="167" width="325" height="10" fill="url(#offsetGrad)"/>
+    <text x="202" y="167" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">Type 1: Offset Commit Records</text>
+    
+    <text x="55" y="196" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#34d399">Key: <tspan font-weight="400" fill="#94a3b8">[group, topic, partition]</tspan></text>
+    <text x="55" y="217" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#38bdf8">Value: <tspan font-weight="400" fill="#94a3b8">offset, leaderEpoch, metadata, timestamps</tspan></text>
+    <text x="55" y="244" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#cbd5e1">Tracks consumer progress across topic partitions.</text>
+  </g>
+
+  <!-- Right Card: Group Metadata -->
+  <g filter="url(#shadow)">
+    <rect x="435" y="145" width="325" height="122" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+    <rect x="435" y="145" width="325" height="32" rx="10" fill="url(#groupGrad)"/>
+    <rect x="435" y="167" width="325" height="10" fill="url(#groupGrad)"/>
+    <text x="597" y="167" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">Type 2: Group Metadata Records</text>
+    
+    <text x="450" y="196" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#fbbf24">Key: <tspan font-weight="400" fill="#94a3b8">[group]</tspan></text>
+    <text x="450" y="217" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#38bdf8">Value: <tspan font-weight="400" fill="#94a3b8">generationId, leader, state, members, protocol</tspan></text>
+    <text x="450" y="244" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#cbd5e1">Manages group state, rebalances &amp; member assignments.</text>
+  </g>
+</svg>

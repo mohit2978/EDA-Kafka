@@ -1,0 +1,92 @@
+<svg viewBox="0 0 820 400" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="clientGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+    <linearGradient id="bootstrapGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#6366f1" />
+    </linearGradient>
+    <linearGradient id="coordGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d97706" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+    <filter id="cardSh" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+    <marker id="mBlue" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M1,1 L7,4 L1,7 Z" fill="#60a5fa" />
+    </marker>
+    <marker id="mGreen" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M1,1 L7,4 L1,7 Z" fill="#34d399" />
+    </marker>
+    <marker id="mAmber" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M1,1 L7,4 L1,7 Z" fill="#fbbf24" />
+    </marker>
+  </defs>
+
+  <rect width="100%" height="100%" fill="url(#bgGrad)" rx="12" />
+
+  <!-- Title -->
+  <text x="410" y="36" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="800" fill="#f8fafc" text-anchor="middle">How Clients &amp; Engineers Discover Group Coordinator</text>
+
+  <!-- Node 1: Consumer Client -->
+  <g filter="url(#cardSh)">
+    <rect x="30" y="65" width="220" height="90" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+    <rect x="30" y="65" width="220" height="30" rx="10" fill="url(#clientGrad)"/>
+    <rect x="30" y="85" width="220" height="10" fill="url(#clientGrad)"/>
+    <text x="140" y="85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">Consumer Client</text>
+    <text x="140" y="115" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#cbd5e1" text-anchor="middle">Group: "order-grp"</text>
+    <text x="140" y="135" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#94a3b8" text-anchor="middle">Knows only bootstrap.servers</text>
+  </g>
+
+  <!-- Node 2: Any Bootstrap Broker -->
+  <g filter="url(#cardSh)">
+    <rect x="300" y="65" width="220" height="90" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+    <rect x="300" y="65" width="220" height="30" rx="10" fill="url(#bootstrapGrad)"/>
+    <rect x="300" y="85" width="220" height="10" fill="url(#bootstrapGrad)"/>
+    <text x="410" y="85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">Any Bootstrap Broker</text>
+    <text x="410" y="115" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#cbd5e1" text-anchor="middle">e.g. Broker 1 (Host:Port)</text>
+    <text x="410" y="135" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#94a3b8" text-anchor="middle">Has full cluster metadata cache</text>
+  </g>
+
+  <!-- Node 3: Designated Group Coordinator Broker -->
+  <g filter="url(#cardSh)">
+    <rect x="570" y="65" width="220" height="90" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+    <rect x="570" y="65" width="220" height="30" rx="10" fill="url(#coordGrad2)"/>
+    <rect x="570" y="85" width="220" height="10" fill="url(#coordGrad2)"/>
+    <text x="680" y="85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">Group Coordinator Broker</text>
+    <text x="680" y="115" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#cbd5e1" text-anchor="middle">Broker 2 (broker-2:9092)</text>
+    <text x="680" y="135" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#fbbf24" text-anchor="middle">Leader of __consumer_offsets-14</text>
+  </g>
+
+  <!-- Flow Steps Box -->
+  <g filter="url(#cardSh)">
+    <rect x="30" y="180" width="760" height="195" rx="10" fill="#111827" stroke="#334155" stroke-width="1"/>
+
+    <!-- Step 1 Line & Label -->
+    <path d="M 140 155 L 140 215 L 390 215" fill="none" stroke="#60a5fa" stroke-width="2" marker-end="url(#mBlue)" />
+    <text x="155" y="205" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#60a5fa">Step 1: FindCoordinatorRequest</text>
+    <text x="155" y="222" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#94a3b8">key: "order-grp", keyType: 0 (GROUP)</text>
+
+    <!-- Calculation Callout in Middle -->
+    <rect x="310" y="235" width="240" height="52" rx="6" fill="#1e293b" stroke="#4f46e5" stroke-width="1"/>
+    <text x="430" y="253" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="#a5b4fc" text-anchor="middle">Internal Broker Calculation:</text>
+    <text x="430" y="272" font-family="'Consolas', monospace" font-size="11" fill="#38bdf8" text-anchor="middle">abs("order-grp".hashCode()) % 50 = 14</text>
+
+    <!-- Step 2 Line & Label -->
+    <path d="M 410 215 L 410 195 M 390 270 L 150 270 L 150 170" fill="none" stroke="#34d399" stroke-width="2" marker-end="url(#mGreen)" />
+    <text x="160" y="260" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#34d399">Step 2: FindCoordinatorResponse</text>
+    <text x="160" y="285" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#94a3b8">Returns: NodeId 2 (broker-2:9092)</text>
+
+    <!-- Step 3 Direct Connection -->
+    <path d="M 230 155 L 230 330 L 680 330 L 680 165" fill="none" stroke="#fbbf24" stroke-width="2" marker-end="url(#mAmber)" />
+    <text x="320" y="322" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#fbbf24">Step 3: Direct Connection for Group Operations</text>
+    <text x="320" y="345" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#e2e8f0">JoinGroup ➔ SyncGroup ➔ Heartbeats ➔ OffsetCommit</text>
+  </g>
+</svg>
