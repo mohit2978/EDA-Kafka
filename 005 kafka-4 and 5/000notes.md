@@ -1,5 +1,4 @@
  
-![alt text](image.png)
 
 ## Complete Flow — Producer Write(video-5)
 
@@ -234,7 +233,6 @@ Advantages:
 
 ## Edge Cases and Failure Scenarios (video-6)
 
-![alt text](image-1.png)
 
 ### 1. Active Controller fails 
 

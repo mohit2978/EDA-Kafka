@@ -215,9 +215,7 @@ offset 4 is put in segment 1 as `4300>4096`
 ![alt text](image.png)
 
 
-![alt text](image-1.png)
 
-![alt text](image-2.png)
 
 
 

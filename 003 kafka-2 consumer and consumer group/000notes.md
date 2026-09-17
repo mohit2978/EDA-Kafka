@@ -1,8 +1,6 @@
 One consumer of a consumer group can read from one partition as Consumer group has information that we have read till this offset ,This information is as per consumer group not as per consumer ,so if multiple consumers read from a consumer group then which offset will consumer group store.
 
-![alt text](image-1.png)
 
-![alt text](image-9.png)
 
 
 
@@ -77,13 +75,7 @@ Consumer also public offset it comiited to `__consumer_offsets` group.
 
  When a consumer reads an event, Kafka doesn't automatically mark it as "done" — you have to **commit** the offset to tell Kafka "I have successfully processed up to here." The strategy you choose decides **when** that commit happens.  
 
-![alt text](image-2.png)
 
-![alt text](image.png)
-
-![alt text](image-3.png)
-
-![alt text](image-5.png)
 
 
 Kafka cluster is a group of Brokers working together to provide: 
@@ -95,7 +87,7 @@ Kafka cluster is a group of Brokers working together to provide:
 
 - High availability: No single point of failure. 
 
-![alt text](image-6.png)
+
 
 ![alt text](image-12.png)
 

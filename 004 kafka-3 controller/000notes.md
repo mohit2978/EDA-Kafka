@@ -2,7 +2,7 @@
 
 ![alt text](image-11.png)
 
-![alt text](image-12.png)
+
 
 ![alt text](image-21.png)
 
@@ -185,4 +185,3 @@ ISR is imporatnt cluster Metadata
 
 ![alt text](image-20.png)
 
-![alt text](image-24.png)
