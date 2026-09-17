@@ -1,5 +1,5 @@
 
-Broker has the records, and below are the 3 possible use cases:
+Broker has the records, and below are the 3 possible states of a record:
 
 ### 1. Transaction status: ONGOING
 
@@ -11,28 +11,41 @@ There is no Control Record for it yet, so means its still in ONGOING state.
 
 ![Log segment showing the record followed by a control record with endTxnMarker=COMMIT](images/02-commit-log.png)
 
+here we have control record which says commit
+
 ### 3. Transaction status: ABORT
 
 ![Log segment showing the record followed by a control record with endTxnMarker=ABORT](images/03-abort-log.png)
+
+here we have control record which says abort
+
+Transaction in a producer is single threaded ,if one transaction is opened by producer you cannot open another transaction.Soa fter comimit and abort we can have another control record .
+
+
+How consumer know what to do with OPEN,COMMIT and ABORT transaction.
 
 ## Concept of LSO (Last Stable Offset)
 
 LSO -> offset of the first message that belongs to an OPEN (ongoing) Transaction.
 
-A "read_committed" consumer CAN NOT read past the LSO. Even if there are committed or non transaction records.
 
-**Example:**
-
-Topic: Order-events
-Partition: P2
-
-Logs:
 
 ![Log with TXN-1 (committed, offsets 0-1, control at 3), TXN-2 (open/ongoing, offset 2), TXN-3 (committed, offset 4, control at 5)](images/04-lso-txn-diagram.png)
 
 LSO=2 (first record in an open transaction). Maintained by broker and keep it in-memory.
 
+
+
+
+
+
 ## Consumer
+
+consumer reads in order.
+
+
+
+Broker never returns control records . It is filtered out at broker level so consumer never sees it.
 
 In Consumer, there are 2 parts:
 
@@ -41,7 +54,13 @@ In Consumer, there are 2 parts:
 
 ```properties
 spring.kafka.consumer.properties.isolation.level=read_committed / read_uncommitted (default)
+
 ```
+
+![alt text](image.png)
+
+A "read_committed" consumer CAN NOT read past the LSO. Even if there are committed or non transaction records.
+
 
 ### Now in read_uncommitted (default)
 
