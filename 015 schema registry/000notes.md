@@ -281,6 +281,7 @@ we sending the java class generated as value.So Avro understand it is class gene
 
 ![Producer detailed flow: cache check, register schema with registry, serialize with magic byte + schema ID + payload, publish](images/07-producer-detailed-flow.png)
 
+![alt text](image-2.png)
 
 1. we sending orderObj generated from avsc so it has getSchema() method now ,it is called and hashed ,orderObj.getSchema() -> generate Hash,now order of fields matter ,even chnage or order will chnage the hash.
 
@@ -383,6 +384,8 @@ spring.kafka.producer.properties.schema.registry.url=http://localhost:8085
 
 `mvn clean compile`, then try to publish again — now the Producer sends `quantity` as a string.
 
+![alt text](image-3.png)
+
 **OUTPUT: Throws Exception**
 
 ```
@@ -395,6 +398,7 @@ additionalInfo:'reader type: STRING not compatible with writer type: INT'},
 {oldSchemaVersion: 1}, {oldSchema: '...'},
 {validateFields: 'false', compatibility: 'BACKWARD'}]; error code: 40901
 ```
+![alt text](image-4.png)
 
 ```
 1. orderObj.getSchema() -> generate Hash (type changed -> hash is different now)
@@ -414,10 +418,12 @@ One question might come up: what is this Compatibility Check? Covered below, aft
 
 ### Step5: Consumer reads the event
 
-![Consumer read flow part 1: fetch bytes from Kafka, read schema ID, check local cache, fetch schema from registry if not cached](images/10-consumer-read-flow-part1.png)
+![alt text](image-5.png)
 
-![Consumer read flow part 2: for each field in schema find the value from payload, build the Order object via reflection using name+namespace, return GenericRecord](images/11-consumer-read-flow-part2.png)
 
+![alt text](image-6.png)
+
+![alt text](image-7.png)
 ```
 1. Consumer: "give me data"
 2. Kafka -> bytes -> Consumer
@@ -540,7 +546,7 @@ public class OrderAvroListener {
 
 Now that we know the complete flow, let's come back to the open question: how does Schema Registry decide whether the event schema a Producer is about to publish is compatible or not?
 
-![Compatibility check: Pass -> registers new schema version; Failed -> throw exception](images/09-compatibility-check-pass-fail.png)
+![alt text](image-8.png)
 
 In the `"_schemas"` topic, there's a field called **Compatibility**, which can be:
 
