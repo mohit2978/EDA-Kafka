@@ -663,6 +663,219 @@ instead — both coexist in the same app.
 
 ---
 
+## KafkaTemplate `send()` Methods & Partition Selection
+
+`KafkaTemplate` provides several overloaded `send()` and `sendDefault()` methods. Under the hood, all of them wrap your arguments into a Kafka `ProducerRecord<K, V>` (or build one from a Spring `Message<?>`) and delegate to `observeSend(producerRecord)` / Kafka producer's `doSend()`.
+
+### 1. All `KafkaTemplate` Send Methods
+
+#### Core Overloaded `send(...)` Methods:
+
+1. **`send(String topic, V data)`**
+   ```java
+   CompletableFuture<SendResult<K, V>> send(String topic, V data);
+   ```
+   - Sends payload without key (`key = null`) and without explicit partition (`partition = null`).
+   - Uses Sticky Partitioning (Kafka 2.4+) or Round-Robin (pre-2.4).
+
+2. **`send(String topic, K key, V data)`**
+   ```java
+   CompletableFuture<SendResult<K, V>> send(String topic, K key, V data);
+   ```
+   - Sends payload with a key, without specifying partition.
+   - Kafka hashes the key using MurmurHash2 to consistently pick the partition.
+
+3. **`send(String topic, Integer partition, K key, V data)`**
+   ```java
+   CompletableFuture<SendResult<K, V>> send(String topic, Integer partition, K key, V data);
+   ```
+   - Explicitly targets a specific partition index (e.g., partition `0`).
+   - Completely bypasses the partitioner logic.
+
+4. **`send(String topic, Integer partition, Long timestamp, K key, V data)`**
+   ```java
+   CompletableFuture<SendResult<K, V>> send(String topic, Integer partition, Long timestamp, K key, V data);
+   ```
+   - Same as above, but also lets you pass an explicit epoch timestamp (milliseconds).
+   - Useful for event sourcing, replays, or historical backfills where event generation time differs from send time.
+
+5. **`send(ProducerRecord<K, V> record)`**
+   ```java
+   CompletableFuture<SendResult<K, V>> send(ProducerRecord<K, V> record);
+   ```
+   - Takes Apache Kafka's native `ProducerRecord`.
+   - Gives you complete low-level control to attach custom Kafka `Headers`, topic, partition, timestamp, key, and value in a single object.
+
+6. **`send(Message<?> message)`**
+   ```java
+   CompletableFuture<SendResult<K, V>> send(Message<?> message);
+   ```
+   - Takes Spring Messaging `Message<T>`.
+   - Topic, key, partition, and headers are extracted from Spring `MessageHeaders` (e.g., `KafkaHeaders.TOPIC`, `KafkaHeaders.KEY`, `KafkaHeaders.PARTITION`).
+
+#### `sendDefault(...)` Methods (when default topic is pre-configured on template):
+
+If you configure a default topic via `kafkaTemplate.setDefaultTopic("my-default-topic")`, you don't have to specify topic name in every call:
+- `sendDefault(V data)`
+- `sendDefault(K key, V data)`
+- `sendDefault(Integer partition, K key, V data)`
+- `sendDefault(Integer partition, Long timestamp, K key, V data)`
+
+---
+
+### 2. How Kafka Decides Which Partition a Message Goes To
+
+When a record is sent without an explicit partition, Kafka determines the partition using the following resolution hierarchy:
+
+```
+                         [ Send Request ]
+                                │
+               Is partition explicitly provided?
+                      /                 \
+                    YES                  NO
+                    /                     \
+       Directly to specified           Is key provided?
+             partition                    /         \
+       (Partitioner bypassed)           YES          NO
+                                        /              \
+                           Hash the key:          Kafka 2.4+:
+                           murmur2(keyBytes)      Sticky Partitioner
+                           % numPartitions        (Batch to same partition
+                                                  until batch.size / linger.ms)
+                                                  -----------------------------
+                                                  Pre Kafka 2.4:
+                                                  Round-Robin across partitions
+```
+
+#### Step-by-Step Logic:
+
+1. **Explicit Partition Specified (`partition != null`):**
+   - If you supply `partition = 0`, Kafka writes directly to partition 0.
+   - Partitioner code is completely bypassed.
+   - *Note:* If you pass an invalid partition number (e.g. partition `5` when topic only has `3` partitions: 0, 1, 2), Kafka throws an error.
+
+2. **Key Provided (`key != null`):**
+   - Kafka computes the partition using MurmurHash2:
+     ```
+     partition = Utils.toPositive(Utils.murmur2(keyBytes)) % totalPartitions
+     ```
+   - **Guarantee:** The same key will **always** hash to the same partition as long as the topic's partition count does not change.
+   - This ensures **per-key ordering** (e.g., all updates for `orderId="ORD-999"` land in the exact same partition and are consumed in order).
+
+3. **Key Not Provided (`key == null`):**
+   - **Sticky Partitioner (Kafka 2.4+ default via `BuiltInPartitioner`):**
+     - Chooses an available partition at random (e.g., P1).
+     - "Sticks" to P1 for all subsequent keyless messages until the batch in the Record Accumulator is full (`batch.size`) or `linger.ms` expires.
+     - Once sent, it chooses another partition for the next batch.
+     - **Why?** Avoids scattering records into tiny single-message network batches.
+   - **Round-Robin (Pre-Kafka 2.4):**
+     - Alternated partitions message-by-message (Msg 1 -> P0, Msg 2 -> P1, Msg 3 -> P2, Msg 4 -> P0...).
+     - Resulted in poor batching and excessive network requests.
+
+4. **Custom Partitioner:**
+   - You can override default partitioning by implementing `org.apache.kafka.clients.producer.Partitioner` and setting `producerProps.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, MyCustomPartitioner.class)`.
+
+---
+
+### 3. Practical Code Examples
+
+#### Scenario: Topic `order-events` with 3 Partitions (`0`, `1`, `2`)
+
+```java
+@Service
+public class OrderEventProducer {
+
+    @Autowired
+    private KafkaTemplate<String, Order> kafkaTemplate;
+
+    // -----------------------------------------------------------------
+    // Case 1: Explicit Partition (e.g., High-Priority VIP orders -> P0)
+    // -----------------------------------------------------------------
+    public void sendToExplicitPartition(Order order) {
+        // topic = "order-events", partition = 0, key = order.getOrderId(), data = order
+        kafkaTemplate.send("order-events", 0, order.getOrderId(), order);
+        // Result: Goes directly to Partition 0 without hash calculation
+    }
+
+    // -----------------------------------------------------------------
+    // Case 2: Key-Based Routing (Guarantees ordering per customer / order)
+    // -----------------------------------------------------------------
+    public void sendWithKey(Order order) {
+        String key = order.getCustomerId(); // e.g., "CUST-450"
+
+        // topic = "order-events", key = "CUST-450", data = order
+        kafkaTemplate.send("order-events", key, order);
+        // Result: Kafka computes murmur2("CUST-450".getBytes()) % 3
+        // All events for "CUST-450" will ALWAYS land in the same partition!
+    }
+
+    // -----------------------------------------------------------------
+    // Case 3: No Key (Sticky batching for high throughput)
+    // -----------------------------------------------------------------
+    public void sendWithoutKey(Order order) {
+        // topic = "order-events", data = order (key is null)
+        kafkaTemplate.send("order-events", order);
+        // Result: Batched into current sticky partition until batch is sent
+    }
+
+    // -----------------------------------------------------------------
+    // Case 4: ProducerRecord with custom Kafka Headers
+    // -----------------------------------------------------------------
+    public void sendWithHeaders(Order order) {
+        ProducerRecord<String, Order> record =
+            new ProducerRecord<>("order-events", order.getOrderId(), order);
+
+        // Custom metadata headers
+        record.headers().add("correlation-id", UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8));
+        record.headers().add("source-service", "checkout-api".getBytes(StandardCharsets.UTF_8));
+
+        kafkaTemplate.send(record);
+    }
+
+    // -----------------------------------------------------------------
+    // Case 5: Spring Messaging MessageBuilder
+    // -----------------------------------------------------------------
+    public void sendUsingSpringMessage(Order order) {
+        Message<Order> message = MessageBuilder
+            .withPayload(order)
+            .setHeader(KafkaHeaders.TOPIC, "order-events")
+            .setHeader(KafkaHeaders.KEY, order.getOrderId())
+            .setHeader("audit-user", "mohit")
+            .build();
+
+        kafkaTemplate.send(message);
+    }
+}
+```
+
+#### Step-by-Step Numerical Example of Key Hashing
+
+Assume topic `order-events` has **3 partitions** (`0`, `1`, `2`):
+
+```
+Event 1: Customer "CUST-101" places Order #1
+  Key: "CUST-101"
+  Hash: Utils.toPositive(Utils.murmur2("CUST-101".getBytes())) = 1,482,914,821
+  Target Partition: 1,482,914,821 % 3 = 1  ---> Lands on Partition 1
+
+Event 2: Customer "CUST-202" places Order #2
+  Key: "CUST-202"
+  Hash: Utils.toPositive(Utils.murmur2("CUST-202".getBytes())) = 894,127,652
+  Target Partition: 894,127,652 % 3 = 2  ---> Lands on Partition 2
+
+Event 3: Customer "CUST-101" cancels Order #1
+  Key: "CUST-101"
+  Hash: Utils.toPositive(Utils.murmur2("CUST-101".getBytes())) = 1,482,914,821
+  Target Partition: 1,482,914,821 % 3 = 1  ---> Lands on Partition 1!
+
+Conclusion:
+Both Order #1 and its cancellation for "CUST-101" land on Partition 1 in strict
+chronological sequence. A single consumer reading Partition 1 will never process
+the cancellation before the creation.
+```
+
+---
+
 ## Closing thread — message reordering risk (recap)
 
 ```

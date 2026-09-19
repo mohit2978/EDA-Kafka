@@ -435,53 +435,287 @@ This scheduler is just one example of a poller — you could also have a complet
 
 A **publication** in PostgreSQL is a named set of changes (from tables) that gets replicated to subscribers, used as part of **logical replication**.
 
-## What it is
+---
 
-Introduced in PostgreSQL 10, a publication defines *what data* should be replicated from a source ("publisher") database. You create it on the database you want to replicate **from**:
+### 1. What Exactly Is a Publication?
+
+Introduced in **PostgreSQL 10**, a publication is a **server-side object** that lives on the *publisher* (source) database. It answers the question:
+
+> *"Which tables, which operations (INSERT / UPDATE / DELETE / TRUNCATE), and which rows / columns should be sent out over logical replication?"*
+
+Think of it as a **filter + selector** sitting on top of the WAL (Write-Ahead Log). When a transaction commits, PostgreSQL's logical decoding layer reads the WAL, checks every changed row against all active publications, and streams the matching changes to connected subscribers.
+
+```
+[Transaction commits]
+        │
+        ▼
+  WAL (Write-Ahead Log)
+        │
+        ▼
+  Logical Decoding Layer
+        │  checks: "is this table/row in any publication?"
+        ▼
+  Publication  ──────────────────► Replication Slot
+                                          │
+                                          ▼
+                                    Subscriber (pulls data)
+```
+
+---
+
+### 2. Creating Publications — Full Syntax
 
 ```sql
--- Publish all changes on specific tables
+-- (a) Publish specific tables
 CREATE PUBLICATION my_pub FOR TABLE orders, customers;
 
--- Publish all tables in the database
+-- (b) Publish ALL tables currently in the database
 CREATE PUBLICATION all_pub FOR ALL TABLES;
 
--- Publish only certain operations
+-- (c) Publish only specific DML operations (pg 15+: also supports TRUNCATE)
 CREATE PUBLICATION insert_only_pub FOR TABLE orders
-  WITH (publish = 'insert');
+  WITH (publish = 'insert');                    -- values: insert, update, delete, truncate
+
+-- (d) Row filter — only rows where status = 'PENDING' (pg 15+)
+CREATE PUBLICATION pending_orders_pub FOR TABLE orders
+  WHERE (status = 'PENDING');
+
+-- (e) Column list — only publish specific columns (pg 15+)
+CREATE PUBLICATION slim_pub FOR TABLE orders (id, status, updated_at);
+
+-- (f) Publish changes to tables in a specific schema (pg 15+)
+CREATE PUBLICATION schema_pub FOR TABLES IN SCHEMA public;
 ```
 
-A publication tracks INSERT, UPDATE, DELETE, and TRUNCATE operations (by default all four) on the tables it includes.
+---
 
-On the receiving side, you create a **subscription** that connects to the publisher and consumes these changes:
+### 3. The `publish` Option — Which Operations Are Replicated
+
+By default, **all four** operations are published. You can restrict it:
+
+| `publish` value | What it means |
+|---|---|
+| `insert` | Only INSERT rows are sent |
+| `update` | Only UPDATE rows are sent |
+| `delete` | Only DELETE rows are sent |
+| `truncate` | Only TRUNCATE events are sent |
+
+You can combine them:
 
 ```sql
-CREATE SUBSCRIPTION my_sub
-  CONNECTION 'host=publisher_host dbname=mydb user=repl_user password=secret'
-  PUBLICATION my_pub;
+CREATE PUBLICATION ins_upd_pub FOR TABLE orders
+  WITH (publish = 'insert, update');
 ```
 
-## Why it's used
+> **Why restrict?** e.g. you only want to replicate new orders (`insert`) to a reporting DB, not deletes — avoids accidental data removal on the subscriber.
 
-1. **Selective replication** — Unlike physical (streaming) replication, which copies the *entire* database/cluster, publications let you replicate only specific tables or even specific columns/rows (via row filters and column lists in newer versions), giving fine-grained control.
+---
 
-2. **Cross-version / cross-platform replication** — Logical replication (via publications) works between different major PostgreSQL versions and even different OS platforms, unlike physical replication which requires binary compatibility.
+### 4. REPLICA IDENTITY — How UPDATE/DELETE Know Which Row to Affect
 
-3. **Zero/low-downtime upgrades and migrations** — You can replicate data to a new PostgreSQL version, cut over, and do a near-zero-downtime major version upgrade.
+This is the most important internals detail people miss.
 
-4. **Data distribution / integration** — Feed specific tables to a separate reporting database, a data warehouse, a microservice's local copy, or a different application, without shipping the whole database.
+When an UPDATE or DELETE happens, the subscriber needs to know *which row* to change. PostgreSQL sends a **"before image"** (the old row values) so the subscriber can find that row. What columns are included in this before-image is controlled by `REPLICA IDENTITY`:
 
-5. **Multi-master / bidirectional setups** — Useful building block for building multi-region or multi-master replication topologies (with appropriate conflict handling).
+| Mode | Description | When to use |
+|---|---|---|
+| `DEFAULT` | Only the primary key columns are sent | ✅ Most cases — fast, low WAL overhead |
+| `FULL` | **All** columns of the old row are sent | When there is no PK, but heavy WAL overhead |
+| `NOTHING` | No before-image is sent at all | UPDATE/DELETE can't be replicated — will error |
+| `USING INDEX idx` | Use a unique index instead of PK | When you want to use a non-PK unique key |
 
-6. **Real-time ETL / CDC (Change Data Capture)** — Tools like Debezium or custom consumers can subscribe to publications (via logical replication slots) to stream changes into Kafka, other databases, or analytics pipelines.
+```sql
+-- Check current replica identity of a table
+SELECT relreplident FROM pg_class WHERE relname = 'orders';
+-- d = DEFAULT, f = FULL, n = NOTHING, i = INDEX
 
-## Key requirements
+-- Change it
+ALTER TABLE orders REPLICA IDENTITY FULL;
+ALTER TABLE orders REPLICA IDENTITY USING INDEX orders_email_key;
+```
 
-- Requires `wal_level = logical` in `postgresql.conf`.
-- Tables generally need a **primary key** (or `REPLICA IDENTITY` set) so UPDATE/DELETE operations can identify the correct row on the subscriber.
-- A publication doesn't do anything by itself — it needs at least one subscription to actually move data.
+> **Rule of thumb:** Always have a **PRIMARY KEY** on tables you want to replicate. Without it, UPDATEs and DELETEs will fail unless you set `REPLICA IDENTITY FULL` (which bloats the WAL).
 
-In short: **publications define what to replicate**, **subscriptions define where it goes and pull the changes** — together they implement PostgreSQL's logical replication.
+---
+
+### 5. Replication Slot — The Cursor Underneath
+
+Every subscription creates a **logical replication slot** on the publisher. This slot:
+
+- Acts as a **cursor** into the WAL — it remembers how far the subscriber has consumed.
+- **Prevents WAL from being deleted** until the subscriber has acknowledged receipt (to guarantee no changes are skipped).
+- Is the reason why a lagging or disconnected subscriber can cause **WAL disk bloat** on the publisher — the WAL keeps accumulating until the subscriber catches up.
+
+```sql
+-- View all replication slots
+SELECT slot_name, plugin, active, restart_lsn, confirmed_flush_lsn
+FROM pg_replication_slots;
+
+-- Drop a slot manually if subscriber is gone (to free WAL space)
+SELECT pg_drop_replication_slot('my_sub');
+```
+
+> ⚠️ **Danger:** If a subscriber goes down and is never cleaned up, its replication slot will hold WAL indefinitely and can **fill your disk**. Always drop slots for decommissioned subscribers.
+
+---
+
+### 6. Managing Publications
+
+```sql
+-- View all publications in the current database
+SELECT * FROM pg_publication;
+
+-- View which tables are in a publication
+SELECT * FROM pg_publication_tables WHERE pubname = 'my_pub';
+
+-- Add a table to an existing publication
+ALTER PUBLICATION my_pub ADD TABLE payments;
+
+-- Remove a table from a publication
+ALTER PUBLICATION my_pub DROP TABLE customers;
+
+-- Change the operations that are published
+ALTER PUBLICATION my_pub SET (publish = 'insert, update');
+
+-- Drop a publication (does NOT drop the subscription or slot)
+DROP PUBLICATION my_pub;
+```
+
+---
+
+### 7. Publication vs Physical (Streaming) Replication
+
+| Feature | Physical Replication | Logical Replication (Publications) |
+|---|---|---|
+| What is copied | Entire cluster (byte-for-byte) | Only selected tables / columns / rows |
+| PostgreSQL version | Must be identical or minor diff only | Can cross major versions (e.g. 14 → 16) |
+| OS / platform | Must be same architecture | Can differ |
+| DDL (schema changes) | Replicated automatically | **NOT replicated** — must apply manually |
+| Subscriber writes | Subscriber is read-only (standby) | Subscriber can be read-write |
+| Use case | HA failover, read replicas | CDC, migrations, partial replication |
+
+---
+
+### 8. Prerequisites / Configuration
+
+```ini
+# postgresql.conf  (requires restart)
+wal_level = logical          # must be 'logical', not 'replica' or 'minimal'
+max_replication_slots = 10   # one slot per subscriber; increase if needed
+max_wal_senders = 10         # concurrent replication connections
+```
+
+```sql
+-- pg_hba.conf: allow the replication user to connect
+# host  replication  repl_user  subscriber_ip/32  md5
+
+-- Grant replication privilege to the user
+CREATE ROLE repl_user WITH REPLICATION LOGIN PASSWORD 'secret';
+
+-- Also GRANT SELECT on published tables (needed for initial snapshot)
+GRANT SELECT ON orders, customers TO repl_user;
+```
+
+---
+
+### 9. Creating a Subscription (Receiver Side)
+
+```sql
+-- On the SUBSCRIBER database:
+CREATE SUBSCRIPTION my_sub
+  CONNECTION 'host=publisher_host port=5432 dbname=mydb user=repl_user password=secret'
+  PUBLICATION my_pub;
+
+-- This:
+-- 1. Creates a replication slot on the publisher
+-- 2. Takes an initial snapshot (copies existing rows) — can be disabled with copy_data = false
+-- 3. Then streams ongoing changes
+
+-- Disable the subscription temporarily
+ALTER SUBSCRIPTION my_sub DISABLE;
+
+-- Re-enable
+ALTER SUBSCRIPTION my_sub ENABLE;
+
+-- Refresh if new tables were added to the publication
+ALTER SUBSCRIPTION my_sub REFRESH PUBLICATION;
+
+-- Drop subscription (also drops the slot on the publisher)
+DROP SUBSCRIPTION my_sub;
+```
+
+---
+
+### 10. Monitoring
+
+```sql
+-- Publisher side: see active WAL senders / subscriber status
+SELECT * FROM pg_stat_replication;
+
+-- Subscriber side: see subscription status + lag
+SELECT * FROM pg_stat_subscription;
+
+-- Check replication lag (bytes behind)
+SELECT
+  slot_name,
+  pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), confirmed_flush_lsn)) AS lag
+FROM pg_replication_slots;
+```
+
+---
+
+### 11. Limitations to Know
+
+| Limitation | Detail |
+|---|---|
+| **No DDL replication** | `ALTER TABLE`, `CREATE INDEX` etc. are NOT replicated — apply schema changes manually on subscriber first |
+| **No sequences** | Sequences are not replicated; INSERT with `SERIAL` may cause conflicts |
+| **No large objects** | `pg_largeobject` changes are not replicated |
+| **Conflicts** | If the same row is modified on both publisher and subscriber, conflicts must be resolved manually |
+| **TRUNCATE caveat** | `TRUNCATE ... CASCADE` only replicates the specified table, not cascaded tables |
+| **Row filters** | Non-immutable functions (e.g. `now()`) are not allowed in row filter expressions |
+
+---
+
+### 12. How Debezium Uses Publications (CDC Context)
+
+In the CDC/outbox pattern:
+
+```
+Postgres WAL
+    │
+    ▼
+Publication  (e.g. FOR TABLE outbox_events)
+    │
+    ▼
+Logical Replication Slot  (created by Debezium)
+    │
+    ▼
+Debezium Postgres Connector  (reads slot via pgoutput plugin)
+    │
+    ▼
+Kafka Topic  (one topic per table by default)
+```
+
+Debezium uses PostgreSQL's built-in `pgoutput` logical decoding plugin (since PostgreSQL 10) — it doesn't need any extra extensions. It creates a replication slot + subscribes to the publication, then translates WAL row changes into structured Kafka events.
+
+```sql
+-- The publication Debezium typically uses
+CREATE PUBLICATION dbz_publication FOR ALL TABLES;
+-- (configured via: publication.name=dbz_publication in connector config)
+```
+
+---
+
+**Summary:**
+
+| Concept | One-liner |
+|---|---|
+| **Publication** | Defines *what* to replicate (tables, operations, rows, columns) |
+| **Subscription** | Defines *where* to send it and *pulls* the changes |
+| **Replication Slot** | The WAL cursor that guarantees no changes are missed |
+| **REPLICA IDENTITY** | Tells PostgreSQL which columns identify a row for UPDATE/DELETE |
+| **pgoutput** | Built-in logical decoding plugin that formats WAL changes for subscribers |
 
 ## Approach 2: CDC (Change Data Capture)
 
